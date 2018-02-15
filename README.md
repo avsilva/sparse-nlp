@@ -1,10 +1,21 @@
+## Planning
+
+1. Training Corpora Definition - 16 Feb
+2. Corpora pre-processing - 28 Feb
+3. Sentence tokenization - 12 Mar
+4. Sentence vetorization - 26 Mar
+5. Word to sentence database - 9 Apr
+6. SOM of sentences - 23 Apr
+7. Word fingerprint - 4 May
+8. Text fingerprint - 17 May
+
 ## Welcome to GitHub
 
 You can use the [editor on GitHub](https://github.com/avsilva/sparse-nlp/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
 
 Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
 
-### Markdown
+### Markdown help
 
 Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
 
@@ -17,9 +28,6 @@ Syntax highlighted code block
 
 - Bulleted
 - List
-
-1. Numbered
-2. List
 
 **Bold** and _Italic_ and `Code` text
 
