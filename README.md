@@ -12,7 +12,7 @@
 
 ## Training Corpora Definition
 
-
+Wikipedia dumps from https://dumps.wikimedia.org/enwiki/20180101/
 
 ### Markdown help
 
