@@ -9,13 +9,17 @@
 7. Word fingerprint - 4 May
 8. Text fingerprint - 17 May
 
-## Welcome to GitHub
+
+## Training Corpora Definition
+
+
+
+### Markdown help
 
 You can use the [editor on GitHub](https://github.com/avsilva/sparse-nlp/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
 
 Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
 
-### Markdown help
 
 Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
 
