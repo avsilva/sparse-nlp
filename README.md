@@ -12,7 +12,7 @@
 
 ## Training Corpora Definition
 
-Wikipedia dumps from https://dumps.wikimedia.org/enwiki/20180101/
+Wikipedia dumps from [wikimedia 2018-01-01](https://dumps.wikimedia.org/enwiki/20180101/)  
 
 ### Markdown help
 
@@ -35,7 +35,7 @@ Syntax highlighted code block
 
 **Bold** and _Italic_ and `Code` text
 
-[Link](url) and ![Image](src)
+![Image](src)
 ```
 
 For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
