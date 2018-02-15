@@ -10,9 +10,22 @@
 8. Text fingerprint - 17 May
 
 
-## Training Corpora Definition
+## 1. Training Corpora Definition
 
 Wikipedia dumps from [wikimedia 2018-01-01](https://dumps.wikimedia.org/enwiki/20180101/)  
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### Markdown help
 
