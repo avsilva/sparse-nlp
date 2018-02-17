@@ -15,6 +15,10 @@
 
 Wikipedia dumps from [wikimedia 2018-01-01](https://dumps.wikimedia.org/enwiki/20180101/) 
 
+### 1.1 Extracting plain text from Wikipedia dumps
+
+[github - attardi/wikiextractor](https://github.com/attardi/wikiextractor)
+
 
 ## 9. Evaluation
 
