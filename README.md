@@ -18,8 +18,10 @@ Wikipedia dumps from [wikimedia 2018-01-01](https://dumps.wikimedia.org/enwiki/2
 
 ## 9. Evaluation
 
-Evaluation code repository: [word-embeddings-benchmarks](https://github.com/kudkudak/word-embeddings-benchmarks.git)
+Evaluation code repository: [github - kudkudak/word-embeddings-benchmarks](https://github.com/kudkudak/word-embeddings-benchmarks.git)
 Evaluation methods: [arxiv.org/abs/1702.02170](https://arxiv.org/abs/1702.02170)
+
+other alternative methods: [github - mfaruqui/eval-word-vectors](https://github.com/mfaruqui/eval-word-vectors)
 
 
 
