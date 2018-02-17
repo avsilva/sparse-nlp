@@ -20,11 +20,12 @@ Wikipedia dumps from [wikimedia 2018-01-01](https://dumps.wikimedia.org/enwiki/2
 [github - attardi/wikiextractor](https://github.com/attardi/wikiextractor)
 
 Document files contains a series of Wikipedia articles, represented each by an XML doc element:
+```markdown
 <doc>...</doc>
 <doc>...</doc>
 ...
 <doc>...</doc>
-
+```
 The element doc has the following attributes:
 
 - id, which identifies the document by means of a unique serial number
@@ -32,12 +33,14 @@ The element doc has the following attributes:
 The content of a doc element consists of pure text, one sentence per line.
 
 Example:
+```markdown
 <doc id="2" url="http://it.wikipedia.org/wiki/Harmonium">
 Harmonium.
 L'harmonium è uno strumento musicale azionato con una tastiera, detta manuale.
 Sono stati costruiti anche alcuni harmonium con due manuali.
 ...
 </doc>
+```
 
 
 ## 9. Evaluation
