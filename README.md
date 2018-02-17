@@ -30,7 +30,7 @@ The element doc has the following attributes:
 
 - id, which identifies the document by means of a unique serial number
 - url, which provides the URL of the original Wikipedia page.
-The content of a doc element consists of pure text, one sentence per line.
+The content of a doc element consists of pure text, one paragraph per line.
 
 Example:
 ```markdown
