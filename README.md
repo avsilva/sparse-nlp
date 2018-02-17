@@ -8,11 +8,19 @@
 6. SOM of sentences - 23 Apr
 7. Word fingerprint - 4 May
 8. Text fingerprint - 17 May
+9. Evaluation
 
 
 ## 1. Training Corpora Definition
 
-Wikipedia dumps from [wikimedia 2018-01-01](https://dumps.wikimedia.org/enwiki/20180101/)  
+Wikipedia dumps from [wikimedia 2018-01-01](https://dumps.wikimedia.org/enwiki/20180101/) 
+
+
+## 9. Evaluation
+
+Evaluation code repository: [word-embeddings-benchmarks](https://github.com/kudkudak/word-embeddings-benchmarks.git)
+Evaluation methods: [arxiv.org/abs/1702.02170](https://arxiv.org/abs/1702.02170)
+
 
 
 
