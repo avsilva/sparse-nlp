@@ -31,6 +31,14 @@ The element doc has the following attributes:
 - url, which provides the URL of the original Wikipedia page.
 The content of a doc element consists of pure text, one sentence per line.
 
+Example:
+<doc id="2" url="http://it.wikipedia.org/wiki/Harmonium">
+Harmonium.
+L'harmonium è uno strumento musicale azionato con una tastiera, detta manuale.
+Sono stati costruiti anche alcuni harmonium con due manuali.
+...
+</doc>
+
 
 ## 9. Evaluation
 
