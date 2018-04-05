@@ -6,9 +6,8 @@ from psycopg2 import IntegrityError
 import os, sys, re
 import json
 import shutil
-from sqlalchemy import create_engine
 import pandas as pd
-import conf.conn as cfg
+#import conf.conn as cfg
 
 
 def insert_snippets(_article, cur):
@@ -52,7 +51,7 @@ def move_file(_filepath, _wikifilesdir, _processed_dir):
     shutil.move(_wikifilesdir+'/'+_filepath, _processed_dir+'/'+new_file_name)
     
 
-def process_file(_datafile, file_id):
+def process_file(cfg, _datafile, file_id):
     
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     i = 0
@@ -65,7 +64,7 @@ def process_file(_datafile, file_id):
 
     mark_file_as_processed(conn_string, file_id)
 
-def select_files(_limit):
+def select_files(cfg, _limit):
     
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
@@ -73,7 +72,7 @@ def select_files(_limit):
     cur.execute("select * from files where processed = 'f' limit %s", (_limit,))
     return cur.fetchall()
 
-def register_file (_path):
+def register_file (cfg, _path):
     
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
@@ -87,7 +86,7 @@ def register_file (_path):
     conn.close()
 
 
-def insert_cleaned_text(_id, _tokens):
+def insert_cleaned_text(cfg, _id, _tokens):
     
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
@@ -101,7 +100,7 @@ def insert_cleaned_text(_id, _tokens):
     conn.close()
 
 
-def get_table_size():
+def get_table_size(cfg):
     
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
@@ -112,7 +111,7 @@ def get_table_size():
     cur.execute(sql)
     return cur.fetchall()
 
-def update_words_vs_snippets(_n_snippets, n_words, snippets_size):
+def update_words_vs_snippets(cfg, _n_snippets, n_words, snippets_size):
     
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
@@ -125,15 +124,8 @@ def update_words_vs_snippets(_n_snippets, n_words, snippets_size):
     conn.commit()
     conn.close()
 
-def get_cleaned_data():
-    conn_string = 'postgresql://postgres@localhost:5432/sparsenlp'
-    engine = create_engine(conn_string)
-    sql = "select id, cleaned_text as text from snippets where cleaned = 't'"
-    dataframe = pd.read_sql_query(sql, con=engine)
-    return dataframe
 
-
-def get_current_chunk_id():
+def get_current_chunk_id(cfg):
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
     cur = conn.cursor()
@@ -149,7 +141,7 @@ def get_current_chunk_id():
     conn.close()
     return result
 
-def create_chunk(_min, _max, _size):
+def create_chunk(cfg, _min, _max, _size):
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
     cur = conn.cursor()

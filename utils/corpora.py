@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-import psycopg2
-from psycopg2 import IntegrityError
+#import psycopg2
+#from psycopg2 import IntegrityError
 import os, sys, re, json
 import collections
 import numpy as np
@@ -11,7 +11,7 @@ import pandas as pd
 import spacy
 from spacy.lang.en.stop_words import STOP_WORDS
 import nltk
-from .database import insert_cleaned_text
+
 
 def freq_toquens(tokens):
     #tokens=nltk.word_tokenize(sentence)
