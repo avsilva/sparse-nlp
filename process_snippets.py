@@ -36,7 +36,7 @@ def clean(data):
 
 def write_cleaned_results(_filename, _data):
     newfilename = _filename[:-4] # assuming the filepath ends with .bz2
-    filepath = './tests/'+newfilename.replace('raw', 'processed')
+    filepath = './chuncks/processed/'+newfilename.replace('raw', 'processed')
     
     file = open(filepath, 'w', encoding='utf-8') 
     for item in _data:
@@ -49,16 +49,15 @@ def process_snippets_from_file(_filename):
     #500 snippets -> 30 min
     print (_filename)
     
-    filepath = './tests/'+_filename
+    filepath = './chuncks/new/'+_filename
     if not os.path.isfile(filepath):
         print ('FILE DOES NOT EXISTS')
         sys.exit(0)
 
     data = pd.read_csv(filepath, compression='bz2')
-    data = data[0:25]
+    #data = data[0:25]
 
     parallel = True
-
     if not parallel:
 
         cleaned_texts = corp.clean_text(data, remove_stop_words=True, remove_punct=True, 
@@ -71,16 +70,15 @@ def process_snippets_from_file(_filename):
 
         results = []
         i = 0
-        with concurrent.futures.ProcessPoolExecutor(max_workers=8) as executor:
+        with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
             for chunk, cleaned_texts in zip(data_chunks, executor.map(clean, data_chunks)):
                 results +=  cleaned_texts
-                
                 if i % 100 == 0:
                     print ('processing chunk '+ str(i))
-
                 i += 1
 
         write_cleaned_results(_filename, results)
+    os.rename('./chuncks/new/'+_filename, './chuncks/new/done_'+_filename)
 
 def main(_filename):
     t1=time()
