@@ -13,7 +13,7 @@ data = zipfile.read() # get the decompressed data
 newfilepath = filepath[:-4] # assuming the filepath ends with .bz2
 open(newfilepath, 'wb').write(data) # write a uncompressed file
 """
-
+FOLDERPATH = './chuncks/new/'
 
 def process_snippets(_limit):
     #tokenizer for snippets 
@@ -36,7 +36,7 @@ def clean(data):
 
 def write_cleaned_results(_filename, _data):
     newfilename = _filename[:-4] # assuming the filepath ends with .bz2
-    filepath = './chuncks/processed/'+newfilename.replace('raw', 'processed')
+    filepath = './chuncks/processed/'+newfilename
     
     file = open(filepath, 'w', encoding='utf-8') 
     for item in _data:
@@ -44,53 +44,59 @@ def write_cleaned_results(_filename, _data):
     file.close() 
     
 
-def process_snippets_from_file(_filename):
-    #tokenizer for snippets 
-    #500 snippets -> 30 min
-    print (_filename)
+def process_snippets_from_file(_parallel, _numworkers):
     
-    filepath = './chuncks/new/'+_filename
-    if not os.path.isfile(filepath):
-        print ('FILE DOES NOT EXISTS')
+    if not os.path.isdir(FOLDERPATH):
+        print ('FOLDER DOES NOT EXISTS')
         sys.exit(0)
-
-    data = pd.read_csv(filepath, compression='bz2')
-    #data = data[0:25]
-
-    parallel = True
-    if not parallel:
-
-        cleaned_texts = corp.clean_text(data, remove_stop_words=True, remove_punct=True, 
-                    lemmas=True, remove_numbers=True, remove_spaces=True, remove_2letters_words=True, 
-                    remove_apostrophe=True, method='spacy', spacy_disabled_components=['tagger', 'parser'])
-        print (cleaned_texts)
-    else:
         
-        data_chunks = data.to_dict('records')
+    for dirpath, dirnames, filenames in os.walk(FOLDERPATH):
+        allfiles = filenames
 
-        results = []
-        i = 0
-        with concurrent.futures.ProcessPoolExecutor(max_workers=4) as executor:
-            for chunk, cleaned_texts in zip(data_chunks, executor.map(clean, data_chunks)):
-                results +=  cleaned_texts
-                if i % 100 == 0:
-                    print ('processing chunk '+ str(i))
-                i += 1
+    allfiles = [file for file in allfiles if file.find('done') == -1 ]
+    
+    totalfiles = len(allfiles)
+    filenum = 1
+    for filename in allfiles:
+        
+        filepath = './chuncks/new/'+filename
+        data = pd.read_csv(filepath, compression='bz2')
+        #data = data[0:25]
 
-        write_cleaned_results(_filename, results)
-    os.rename('./chuncks/new/'+_filename, './chuncks/new/done_'+_filename)
+        if not _parallel:
 
-def main(_filename):
+            results = clean(data)
+            write_cleaned_results(filename, results)
+        else:
+            print ('parallel')
+            data_chunks = data.to_dict('records')
+
+            results = []
+            i = 0
+            with concurrent.futures.ProcessPoolExecutor(max_workers=int(_numworkers)) as executor:
+                for chunk, cleaned_texts in zip(data_chunks, executor.map(clean, data_chunks)):
+                    results +=  cleaned_texts
+                    #if i % 100 == 0:
+                    if i % 2 == 0:
+                        print ('processing chunk '+ str(i)+ ' of file number: '+str(filenum)+' (total is: '+str(totalfiles)+')')
+                    i += 1
+
+            write_cleaned_results(filename, results)
+        filenum += 1 
+        os.rename('./chuncks/new/'+filename, './chuncks/new/done_'+filename)
+
+def main(_parallel, _numworkers):
     t1=time()
-    process_snippets_from_file(_filename)
+    process_snippets_from_file(_parallel, _numworkers)
     t2=time()
-    print("\nTime taken by processing snippets\n----------------------------------------------\n{} s".format((t2-t1)))
+    print("\nTime taken for processing snippets\n----------------------------------------------\n{} s".format((t2-t1)))
 
 if __name__ == "__main__":
     
-    if len(sys.argv) != 2:
+    if len(sys.argv) != 3:
         print ("wrong number of arguments")
+        print ("python .\process_snippets.py <parallel> <num workers>")
         sys.exit()
-    main(sys.argv[1])
+    main(sys.argv[1], sys.argv[2])
 
-#python .\process_snippets.py raw_562836_562944_100.bz2
+#python .\process_snippets.py True 4

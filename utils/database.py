@@ -146,8 +146,10 @@ def create_chunk(cfg, _min, _max, _size):
     conn = psycopg2.connect(conn_string)
     cur = conn.cursor()
     print (_min, _max, _size)
-    cur.execute("INSERT into chunks (idmin, idmax, size, processed) values (%s, %s, %s, %s)", (int(_min), int(_max), int(_size), 'f',))
+    cur.execute("INSERT into chunks (idmin, idmax, size, processed) values (%s, %s, %s, %s) RETURNING id", (int(_min), int(_max), int(_size), 'f',))
+    id = cur.fetchone()[0]
     cur.close()
     conn.commit()
     conn.close()
+    return id
     
