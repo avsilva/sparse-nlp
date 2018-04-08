@@ -68,7 +68,7 @@ def process_snippets_from_file(_parallel, _numworkers):
             results = clean(data)
             write_cleaned_results(filename, results)
         else:
-            print ('parallel')
+            print ('Parallel processing with '+str(_numworkers)+' workers')
             data_chunks = data.to_dict('records')
 
             results = []
@@ -76,8 +76,7 @@ def process_snippets_from_file(_parallel, _numworkers):
             with concurrent.futures.ProcessPoolExecutor(max_workers=int(_numworkers)) as executor:
                 for chunk, cleaned_texts in zip(data_chunks, executor.map(clean, data_chunks)):
                     results +=  cleaned_texts
-                    #if i % 100 == 0:
-                    if i % 2 == 0:
+                    if i % 100 == 0:
                         print ('processing chunk '+ str(i)+ ' of file number: '+str(filenum)+' (total is: '+str(totalfiles)+')')
                     i += 1
 
