@@ -130,16 +130,16 @@ def clean_text(_text, **kwargs):
             tokens.append({'id': row['id'], 'snippet': get_tokens(snippet, **kwargs)})
     return tokens
 
-def get_word_counts_per_snippet(dataframe, **kwargs):
+def get_word_counts_per_snippet(dataframe):
 
     docs = []
     for index, row in dataframe.iterrows():
         doc = collections.Counter()
         doc['id'] = row['id']
-        if kwargs['clean_text']:
-            tokens = get_tokens(row['text'], **kwargs)
-        else:
-            tokens = row['text'].split()
+        doc['idx'] = index
+        #doc['bmux'] = row['bmu_x']
+        #doc['bmuy'] = row['bmu_y']
+        tokens = row['cleaned_text'].split()
 
         for w in tokens:
             doc[w] += 1
@@ -150,7 +150,10 @@ def get_vocabulary(word_docs):
     vocabulary = set()
     for d in word_docs:
         for w in d:
-            vocabulary.add(w)
+            #only accounting for words without _ (Named Entities)
+            if w.find('_') == -1:
+                vocabulary.add(w.lower())
+            #vocabulary.add(w)
     return vocabulary
 
 def get_snippets_by_word2(dataframe):
@@ -171,7 +174,8 @@ def get_snippets_by_word(word_counts_per_snippet):
     snippets_by_word = {}
     for d in word_counts_per_snippet:
         for w in d:
-            snippet_word_counts = {'snippet': d['id'], 'counts': d[w]}
+            #snippet_word_counts = {'snippet': d['id'], 'idx': d['idx'], 'bmux': d['bmux'], 'bmuy': d['bmuy'], 'counts': d[w]}
+            snippet_word_counts = {'snippet': d['id'], 'idx': d['idx'], 'counts': d[w]}
             if w not in snippets_by_word:
                 #snippets_by_word[w] = [d['id']]
                 snippets_by_word[w] = [snippet_word_counts]

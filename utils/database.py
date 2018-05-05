@@ -10,6 +10,39 @@ import pandas as pd
 #import conf.conn as cfg
 
 
+
+def update_bmu(cfg, _snippet_id, _bmu_x, _bmu_y):
+    conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    cur.execute("update snippets set bmu_x = %s, bmu_y = %s where id = %s", (_bmu_x, _bmu_y, _snippet_id))
+    cur.close()
+    conn.commit()
+    conn.close()
+
+
+def insert_log(cfg, _operation, _params, _minutes):
+    conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    cur.execute("INSERT INTO logs (operation, params, minutes, date) VALUES (%s, %s, %s, now())", (_operation, _params, _minutes))
+    cur.close()
+    conn.commit()
+    conn.close()
+
+def get_tables_sizes(cfg):
+    table_sizes = get_table_size(cfg)
+    return table_sizes
+
+def update_stats(cfg, data, vocabulary):
+    """
+    table_sizes = get_tables_sizes(cfg)
+    for row in table_sizes:
+        if row[0] == 'snippets':
+            snippets_size = row[1]
+    """
+    update_words_vs_snippets(cfg, data.shape[0], len(vocabulary))
+
 def insert_snippets(_article, cur):
     snippets = re.split("\n\n+", _article['text'])
     
@@ -99,25 +132,45 @@ def insert_cleaned_text(cfg, _id, _tokens):
     conn.commit()
     conn.close()
 
+def batch_update_cleaned_text_file(cfg, _data, _file):
+    
+    conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    rownum = 0
+
+    for row in _data:
+        cur.execute("UPDATE snippets set cleaned_text = lower(%s), cleaned = %s where id = %s", (row[1], 't', row[0]))
+        #if rownum < 5:
+            #print (row[0])
+        rownum += 1
+    
+    id = _file.split('_')[0]
+    cur.execute("UPDATE chunks set date_processed = now(), processed = %s where id = %s", ('t', id))
+
+    cur.close()
+    conn.commit()
+    conn.close()
+
 
 def get_table_size(cfg):
     
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
     cur = conn.cursor()
-    sql = 'select table_name, (pg_size_pretty(pg_relation_size(quote_ident(table_name)))) '
+    sql = 'select table_name, (pg_relation_size(quote_ident(table_name))) '
     sql += 'from information_schema.tables '
     sql += "where table_schema = 'public' order by 2"
     cur.execute(sql)
     return cur.fetchall()
 
-def update_words_vs_snippets(cfg, _n_snippets, n_words, snippets_size):
+def update_words_vs_snippets(cfg, _n_snippets, n_words):
     
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
     cur = conn.cursor()
     try:
-        cur.execute("INSERT into words_vs_snippets (n_snippets, n_words, register_date, snippets_size) values (%s, %s, now(), %s)", (_n_snippets, n_words, snippets_size,))
+        cur.execute("INSERT into words_vs_snippets (n_snippets, n_words, register_date) values (%s, %s, now())", (_n_snippets, n_words,))
     except IntegrityError:
         print(sys.exc_info()[0])
     cur.close()
@@ -145,7 +198,7 @@ def create_chunk(cfg, _min, _max, _size):
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
     cur = conn.cursor()
-    print (_min, _max, _size)
+    #print (_min, _max, _size)
     cur.execute("INSERT into chunks (idmin, idmax, size, processed) values (%s, %s, %s, %s) RETURNING id", (int(_min), int(_max), int(_size), 'f',))
     id = cur.fetchone()[0]
     cur.close()
