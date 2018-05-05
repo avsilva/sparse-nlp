@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
-import psycopg2
-from psycopg2 import IntegrityError
 import os, sys, re
+try:
+    import psycopg2
+    from psycopg2 import IntegrityError
+except:
+    print('ERROR: ' +str(sys.exc_info()[0]))
+
 import json
 import shutil
 import pandas as pd

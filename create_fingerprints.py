@@ -6,10 +6,8 @@ import numpy as np
 import pandas as pd
 import pickle
 from scipy.sparse import csr_matrix
-import datetime
 import utils.fingerprints as finger
-import matplotlib.pyplot as plt
-from scipy import ndimage, spatial
+from scipy import spatial
 
 
 
@@ -19,7 +17,6 @@ def create_word_fingerprint(_word):
     sufix = '_'+som_type+'_'+str(H)+'_'+str(N)+'_'+str(rows)
 
     codebook = np.load('./serializations/codebook'+sufix+'.npy')
-    dataframe = pd.read_pickle('./serializations/dataframe'+sufix+'.pkl')
     loader = np.load('./serializations/X'+sufix+'.npz')
     X = csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape=loader['shape'])
 

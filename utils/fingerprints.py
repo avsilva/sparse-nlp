@@ -9,7 +9,12 @@ from functools import reduce
 from sparse_som import *
 import utils.corpora as corp
 import utils.database as db
-import conf.conn as cfg
+
+try:
+    import conf.conn as cfg
+except:
+    print('ERROR: ' +str(sys.exc_info()[0]))
+
 
 
 def sparsify_fingerprint(a):
