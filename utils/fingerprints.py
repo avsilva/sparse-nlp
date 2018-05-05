@@ -20,13 +20,13 @@ except:
 def sparsify_fingerprint(a):
     
     hist = np.histogram(a, bins=10, range=None, normed=False, weights=None, density=None)
-    print (hist[0])
-    print (hist[1])
+    #print (hist[0])
+    #print (hist[1])
 
     sparsify_percentage = 0.02
     nvalues = a.shape[0] * a.shape[1]
     maxpixels = nvalues * sparsify_percentage
-    print ('maxpixels:', maxpixels)
+    #print ('maxpixels:', maxpixels)
 
     actual_value = 0
     pixels_on = 0
@@ -38,14 +38,10 @@ def sparsify_fingerprint(a):
         else:
             pixels_on += val
 
-    print ('pixels_on: ', pixels_on)
+    #print ('pixels_on: ', pixels_on)
     pixels_on_missing = round(maxpixels - pixels_on)
-    print ('pixels_on_missing: ', pixels_on_missing) 
-
-    if lower_limit_index != 0:
-        pass
-        #lower_limit_index = lower_limit_index - 1       
-    print ('lower_limit_index: ', lower_limit_index)
+    #print ('pixels_on_missing: ', pixels_on_missing) 
+    #print ('lower_limit_index: ', lower_limit_index)
 
     rev = list(reversed(hist[1]))
 
@@ -68,24 +64,15 @@ def sparsify_fingerprint(a):
                     x[...] = 0 
             else:
                 x[...] = 0
-                
-        #hista = np.histogram(a_copy, bins=bins)
-        #print ('a_copy ',hista[0])
-
 
     lower_count = rev[lower_limit_index]
+    #print ('lower_count: ', lower_count)
 
-    print ('lower_count: ', lower_count)
     sparsify = lambda t: 1 if t > lower_count else 0
-    #sparsify = lambda t: t if t > lower_count else 0
-    #binary = lambda t: 1 if t >= 1 else 0
-
     vfunc = np.vectorize(sparsify)
     b = vfunc(a)
 
     total = np.sum([a_copy, b], axis=0)
-    #vfunc = np.vectorize(binary)
-    #c = vfunc(b)
     return total
 
 
@@ -107,7 +94,9 @@ def equalize(h):
     return lut
 
 def create_fp_image (a, _word, _sufix):
-    im = Image.fromarray(a)
+    
+    #im = Image.fromarray(a)
+    im = Image.fromarray(a.astype('uint8'))
 
     if os.path.exists("./images/"+_word+_sufix+".bmp"):
         print ('Removing '+'./images/'+_word+_sufix+'.bmp')
@@ -135,7 +124,7 @@ def create_fingerprint(_word, _snippets_by_word, _codebook, X, H, W, sufix):
     word_counts = _snippets_by_word[_word]
 
     a = np.zeros((H, W), dtype=np.int)
-    print ('######## Creating fingerprint: ' +str(_word)+ '  ########')
+    print ('######## Creating fingerprint: "' +str(_word)+ '" with '+str(len(word_counts))+' appearances in snippets  ########')
     i = 0
     for snippet_count in word_counts:
         #idx =  _dataframe.index[_dataframe['id'] == snippet_count['snippet']].tolist()[0]
