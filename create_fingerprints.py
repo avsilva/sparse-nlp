@@ -10,13 +10,12 @@ from scipy.sparse import csr_matrix
 import utils.fingerprints as finger
 from scipy import spatial
 
-DIR = '/opt/sparse-nlp/datasets'
-
+#DIR = '/opt/sparse-nlp/datasets'
+DIR = 'C:/Users/andre.silva/web_data/'
 
 
 def create_word_fingerprint(_word, _snippets_by_word, _codebook, X, H, W, _sufix):
     a_original, a_sparse = finger.create_fingerprint(_word, _snippets_by_word, _codebook, X, H, W, _sufix)
-
 
 
 def  get_words_for_men_dataset(line):
@@ -36,31 +35,59 @@ def fetch_MEN(_snippets_by_word, _codebook, X, H, W, _sufix):
         sys.exit(0)
     else:
         file = open(filepath, 'r', encoding='utf-8') 
-        nline = 1
         oov = 0
         oov_words = []
         for line in file:
             
+            data = get_words_for_men_dataset(line)
+            for w in data:
+                fingerprintpath = './images/'+w+_sufix+'.bmp'
+                if (os.path.isfile(fingerprintpath) == False):
+                    print ("Linha: %s  "% (nline))
+                    create_word_fingerprint(w, _snippets_by_word, _codebook, X, H, W, _sufix)
+            w1 = data[0]
+            w2 = data[1]
+            
+            if w1.lower() not in _snippets_by_word or w2.lower() not in _snippets_by_word:
+                oov += 1
+                oov_words.append(w1 + ' '+ w2)
+            
+        print ("There are %s OOV words in MEN dataset"% (oov))
+
+def fetch_WS353(_snippets_by_word, _codebook, X, H, W, _sufix):
+    print ('fetching WS353 dataset')
+    filepath = DIR+'/similarity/EN-WS353.txt'
+    if (os.path.isfile(filepath) == False):
+        print ('FILE DOES NOT EXISTS')
+        sys.exit(0)
+    else:
+        file = open(filepath, 'r', encoding='utf-8') 
+        nline = 1
+        oov = 0
+        oov_words = []
+        folder = 'BSOM_64_1000_305554'
+        for line in file:
+            
             if nline != 1:
-                data = get_words_for_men_dataset(line)
-                for w in data:
-                    fingerprintpath = './images/'+w+_sufix+'.bmp'
+                words = line.split('\t')[0:2]
+                #score = words[2].replace('\n', '')
+                
+                for w in words:
+                    fingerprintpath = './images/'+folder+'/'+w+_sufix+'.bmp'
                     if (os.path.isfile(fingerprintpath) == False):
-                        print ("Linha: %s  "% (nline))
-                        create_word_fingerprint(w, _snippets_by_word, _codebook, X, H, W, _sufix)
-                w1 = data[0]
-                w2 = data[1]
+                        print ("Linha: %s %s "% (nline, fingerprintpath))
+                        #create_word_fingerprint(w, _snippets_by_word, _codebook, X, H, W, _sufix)
+                w1 = words[0]
+                w2 = words[1]
                 
 
                 if w1.lower() not in _snippets_by_word or w2.lower() not in _snippets_by_word:
                     oov += 1
                     oov_words.append(w1 + ' '+ w2)
+                
             nline += 1
             
         print ("There are %s OOV words in MEN dataset"% (oov))
-
-def fetch_WS353():
-    pass
 
 def fetch_SimLex999():
     pass
@@ -110,6 +137,7 @@ if __name__ == "__main__":
 
 #python create_fingerprints.py ceramic
 #python create_fingerprints.py men-dataset
+#python create_fingerprints.py WS353-dataset
     
 
 
