@@ -24,8 +24,9 @@ def  get_words_for_men_dataset(line):
     words = line.split(' ')
     w1 = words[0].split('-')[0]
     w2 = words[1].split('-')[0]
-    score = words[2].replace('\n', '')
-    return [w1, w2, score]
+    #score = words[2].replace('\n', '')
+    return [w1, w2]
+    #return [w1, w2, score]
 
 def fetch_MEN(_snippets_by_word, _codebook, X, H, W, _sufix):
     print ('fetching MEN dataset')
@@ -42,12 +43,14 @@ def fetch_MEN(_snippets_by_word, _codebook, X, H, W, _sufix):
             
             if nline != 1:
                 data = get_words_for_men_dataset(line)
+                for w in data:
+                    fingerprintpath = './images/'+w+_sufix+'.bmp'
+                    if (os.path.isfile(fingerprintpath) == False):
+                        print ("Linha: %s  "% (nline))
+                        create_word_fingerprint(w, _snippets_by_word, _codebook, X, H, W, _sufix)
                 w1 = data[0]
                 w2 = data[1]
-                print ("Words %s %s "% (w1, w2))
-                #score = data[2]
-                create_word_fingerprint(w1, _snippets_by_word, _codebook, X, H, W, _sufix)
-                create_word_fingerprint(w2, _snippets_by_word, _codebook, X, H, W, _sufix)
+                
 
                 if w1.lower() not in _snippets_by_word or w2.lower() not in _snippets_by_word:
                     oov += 1
