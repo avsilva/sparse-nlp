@@ -10,8 +10,8 @@ from scipy.sparse import csr_matrix
 import utils.fingerprints as finger
 from scipy import spatial
 
-#DIR = '/opt/sparse-nlp/datasets'
-DIR = 'C:/Users/andre.silva/web_data/'
+DIR = '/opt/sparse-nlp/datasets'
+#DIR = 'C:/Users/andre.silva/web_data/'
 
 
 def create_word_fingerprint(_word, _snippets_by_word, _codebook, X, H, W, _sufix):
@@ -73,14 +73,13 @@ def fetch_WS353(_snippets_by_word, _codebook, X, H, W, _sufix):
                 #score = words[2].replace('\n', '')
                 
                 for w in words:
-                    fingerprintpath = './images/'+folder+'/'+w+_sufix+'.bmp'
+                    fingerprintpath = './images/'+w+_sufix+'.bmp'
                     if (os.path.isfile(fingerprintpath) == False):
-                        print ("Linha: %s %s "% (nline, fingerprintpath))
-                        #create_word_fingerprint(w, _snippets_by_word, _codebook, X, H, W, _sufix)
+                        print ("Linha: %s %s "% (nline,  w.lower()))
+                        create_word_fingerprint(w.lower(), _snippets_by_word, _codebook, X, H, W, _sufix)
                 w1 = words[0]
                 w2 = words[1]
                 
-
                 if w1.lower() not in _snippets_by_word or w2.lower() not in _snippets_by_word:
                     oov += 1
                     oov_words.append(w1 + ' '+ w2)
