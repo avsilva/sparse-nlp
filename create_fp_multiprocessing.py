@@ -15,7 +15,6 @@ from scipy.sparse import csr_matrix
 from sparse_som import *
 import numpy as np
 import re
-import conf.conn as cfg
 import concurrent.futures
 import math
 
@@ -38,6 +37,7 @@ print ('snippets_by_word: '+sufix+' load done')
 
 
 DIR = 'C:/Users/andre.silva/web_data/'
+DATASET = 'RGB65'
 H, W, N, rows, algo = 64, 64, 2715, 591577, 'SDSOM'
 som_type = {'SDSOM': Som, 'BSOM': BSom}
 sufix = '_'+algo+'_'+str(H)+'_'+str(N)+'_'+str(rows)
@@ -84,16 +84,30 @@ def main():
     
     
 
-    print('loading snippets_by_word{}'.format(sufix))  
-    dataframe = db.get_cleaned_data()
-    print('dataframe shape {} '.format(dataframe.shape))
-    #words = ['sun', 'sunlight', 'grape', 'vine', 'leaf', 'nature', 'colour', 'rainbow', 'morning', 'sunshine', 
-    #        'bloom', 'daffodil', 'holiday', 'travel', 'snow', 'weather', 'banana', 'cherry', 'potato', 'salad', 
-    #        'eat', 'strawberry']
+    print('loading snippets_by_word{}'.format(sufix)) 
 
     dictionary = fetch_ENRG65()
     words = list(dictionary)
-    snippets_by_word = corp.get_snippets_and_counts(dataframe, words)
+
+    filepath = './serializations/snippets_by_word_'+DATASET+'_'+str(rows)+'.pkl'
+    if (os.path.isfile(filepath) == False):
+        dataframe = db.get_cleaned_data()
+        print('dataframe shape {} '.format(dataframe.shape))
+        #words = ['sun', 'sunlight', 'grape', 'vine', 'leaf', 'nature', 'colour', 'rainbow', 'morning', 'sunshine', 
+        #        'bloom', 'daffodil', 'holiday', 'travel', 'snow', 'weather', 'banana', 'cherry', 'potato', 'salad', 
+        #        'eat', 'strawberry']
+
+        
+        snippets_by_word = corp.get_snippets_and_counts(dataframe, words)
+
+        with open('./serializations/snippets_by_word_'+DATASET+'_'+str(rows)+'.pkl', 'wb') as f:
+            pickle.dump(snippets_by_word, f)
+    else:
+        with open('./serializations/snippets_by_word_'+DATASET+'_'+str(rows)+'.pkl', 'rb') as handle:
+            snippets_by_word = pickle.load(handle)
+
+    
+
     for word in words:
         # word = 'leaf'
         
