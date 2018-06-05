@@ -9,6 +9,8 @@ from functools import reduce
 from sparse_som import *
 import utils.corpora as corp
 import utils.database as db
+import concurrent.futures
+import math
 
 try:
     import conf.conn as cfg
@@ -114,14 +116,16 @@ def create_fp_image (a, _word, _sufix):
     im.save("./images/"+_word+_sufix+".bmp")
     os.remove("./images/"+_word+_sufix+".png")
 
-def create_fingerprint(_word, _snippets_by_word, _codebook, X, H, W, sufix):
-    
-   
-    N = X.shape[1]
-    som = Som(H, W, N, topology.RECT, verbose=True) # , verbose=True
-    som.codebook = _codebook
 
-    word_counts = _snippets_by_word[_word]
+def create_fingerprint(_word, _snippets_by_word, som, X, sufix):
+    
+    
+    W = som.ncols
+    H = som.nrows
+    #som = Som(H, W, N, topology.RECT, verbose=True) # , verbose=True
+    #som.codebook = _codebook
+
+    word_counts = _snippets_by_word[_word] 
 
     a = np.zeros((H, W), dtype=np.int)
     print ('######## Creating fingerprint: "' +str(_word)+ '" with '+str(len(word_counts))+' appearances in snippets  ########')
@@ -130,8 +134,10 @@ def create_fingerprint(_word, _snippets_by_word, _codebook, X, H, W, sufix):
         #idx =  _dataframe.index[_dataframe['id'] == snippet_count['snippet']].tolist()[0]
         idx = snippet_count['idx']
         bmus = som.bmus(X[idx])
+        #print (type(bmus))
+        #print (bmus)
         #print (bmus[0].tolist())
-        #print (snippet_count)
+        #bmus = [[93,  72]]
         
         #db.update_bmu (cfg, snippet_count['snippet'], int(bmus[0][0]), int(bmus[0][1]))
 

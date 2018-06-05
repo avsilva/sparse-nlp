@@ -130,6 +130,32 @@ def clean_text(_text, **kwargs):
             tokens.append({'id': row['id'], 'snippet': get_tokens(snippet, **kwargs)})
     return tokens
 
+
+def get_snippets_and_counts(_dataframe, _word):
+    
+    snippets_and_counts = {}
+    for w in _word:
+        info = {'idx': 0, 'counts': 0}
+        snippets_and_counts[w] = [info]
+
+
+    
+    for index, row in _dataframe.iterrows():
+        tokens = row['cleaned_text'].split()
+        for w in _word:
+            
+            if tokens.count(w) != 0:
+                info = {'idx': index, 'counts': tokens.count(w)}
+                #if w not in snippets_and_counts:
+                #    snippets_and_counts[w] = [info]
+                #else:
+                snippets_and_counts[w].append(info)
+
+        if index % 100000 == 0:
+            print ('index '+str(index))
+    
+    return snippets_and_counts
+
 def get_word_counts_per_snippet(dataframe):
 
     docs = []

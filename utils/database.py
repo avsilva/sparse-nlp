@@ -10,9 +10,30 @@ except:
 import json
 import shutil
 import pandas as pd
+from sqlalchemy import create_engine
 #import conf.conn as cfg
 
 
+def get_cleaned_data(_word=None):
+    conn_string = 'postgresql://postgres@localhost:5432/sparsenlp'
+    engine = create_engine(conn_string)
+    sql = "select id, cleaned_text from snippets where cleaned = 't' "
+    if _word is not None:
+        sql += "and cleaned_text ilike '%%"+_word+"%%'"
+        #sql += " and cleaned_text ilike '%%benfica%%'"
+        
+    print (sql)
+    dataframe = pd.read_sql_query(sql, con=engine)
+    return dataframe
+
+def insert_score(cfg, _params, _datasets, _measure, _value):
+    conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    cur.execute("INSERT INTO scores (params, dataset, measure, value) VALUES (%s, %s, %s, %s)", (_params, _datasets, _measure, _value))
+    cur.close()
+    conn.commit()
+    conn.close()
 
 def update_bmu(cfg, _snippet_id, _bmu_x, _bmu_y):
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
@@ -141,9 +162,19 @@ def batch_update_cleaned_text_file(cfg, _data, _file):
     conn = psycopg2.connect(conn_string)
     cur = conn.cursor()
     rownum = 0
-
+    
     for row in _data:
+        
+        """
+        try:
+            cur.execute("UPDATE snippets set cleaned_text = lower(%s), cleaned = %s where id = %s", (row[1], 't', row[0]))
+        except IntegrityError:
+            print(row[1])
+            print(sys.exc_info()[0])
+        """
         cur.execute("UPDATE snippets set cleaned_text = lower(%s), cleaned = %s where id = %s", (row[1], 't', row[0]))
+        if rownum % 500 == 0:
+            print (rownum)
         #if rownum < 5:
             #print (row[0])
         rownum += 1

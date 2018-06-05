@@ -8,7 +8,10 @@ import pandas as pd
 import pickle
 from scipy.sparse import csr_matrix
 import utils.fingerprints as finger
+import utils.corpora as corp
+import utils.database as db
 from scipy import spatial
+from sparse_som import *
 
 DIR = '/opt/sparse-nlp/datasets'
 #DIR = 'C:/Users/andre.silva/web_data/'
@@ -44,7 +47,8 @@ def fetch_MEN(_snippets_by_word, _codebook, X, H, W, _sufix):
                 fingerprintpath = './images/'+w+_sufix+'.bmp'
                 if (os.path.isfile(fingerprintpath) == False):
                     print ("Linha: %s  "% (nline))
-                    create_word_fingerprint(w, _snippets_by_word, _codebook, X, H, W, _sufix)
+                    #create_word_fingerprint(w, _snippets_by_word, _codebook, X, H, W, _sufix)
+                    a_original, a_sparse = finger.create_fingerprint(w, _snippets_by_word, _codebook, X, H, W, _sufix)
             w1 = data[0]
             w2 = data[1]
             
@@ -76,7 +80,8 @@ def fetch_WS353(_snippets_by_word, _codebook, X, H, W, _sufix):
                     fingerprintpath = './images/'+w+_sufix+'.bmp'
                     if (os.path.isfile(fingerprintpath) == False):
                         print ("Linha: %s %s "% (nline,  w.lower()))
-                        create_word_fingerprint(w.lower(), _snippets_by_word, _codebook, X, H, W, _sufix)
+                        #create_word_fingerprint(w.lower(), _snippets_by_word, _codebook, X, H, W, _sufix)
+                        a_original, a_sparse = finger.create_fingerprint(w.lower(), _snippets_by_word, _codebook, X, H, W, _sufix)
                 w1 = words[0]
                 w2 = words[1]
                 
@@ -94,7 +99,6 @@ def fetch_SimLex999():
 
 def main(_word):
     
-
     # Define datasets
     datasets = {
         "men-dataset": fetch_MEN,
@@ -102,41 +106,53 @@ def main(_word):
         "SIMLEX999-dataset": fetch_SimLex999
     }
 
-    H, W, N, rows = 64, 64, 1000, 305554    # Network height, width and unit dimensions
-    som_type = 'BSOM'
-    sufix = '_'+som_type+'_'+str(H)+'_'+str(N)+'_'+str(rows)
+    # H, W, N, rows = 64, 64, 1000, 305554    # Network height, width and unit dimensions
+    # som_type = 'BSOM'
+    # sufix = '_'+som_type+'_'+str(H)+'_'+str(N)+'_'+str(rows)
+
+    H, W, N, rows, algo = 64, 64, 2715, 591577, 'SDSOM'
+    som_type = {'SDSOM': Som, 'BSOM': BSom}
+    sufix = '_'+algo+'_'+str(H)+'_'+str(N)+'_'+str(rows)
 
     codebook = np.load('./serializations/codebook'+sufix+'.npy')
+    som = som_type[algo](H, W, N, topology.RECT, verbose=True)
+    som.codebook = codebook
+
     loader = np.load('./serializations/X'+sufix+'.npz')
     X = csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape=loader['shape'])
 
-    print (' loading snippets_by_word'+sufix)   
-    with open('./serializations/snippets_by_word'+sufix+'.pkl', 'rb') as handle:
-        snippets_by_word = pickle.load(handle)
-    print ('./serializations/snippets_by_word'+sufix+' load done')
+    print('loading snippets_by_word{}'.format(sufix))  
+    dataframe = db.get_cleaned_data()
+    print('dataframe shape {} '.format(dataframe.shape))
+    words = ['sun', 'sunlight', 'grape', 'vine', 'leaf', 'nature', 'colour', 'rainbow', 'morning', 'sunshine', 
+            'bloom', 'daffodil', 'holiday', 'travel', 'snow', 'weather', 'banana', 'cherry', 'potato', 'salad', 
+            'eat', 'strawberry']
+    snippets_by_word = corp.get_snippets_and_counts(dataframe, words)
 
-    t1=time()
+    t1 = time()
     if _word in datasets:
-        print ("creating fingerprints for all dataset "+_word)
+        print("creating fingerprints for all dataset "+_word)
         datasets[_word](snippets_by_word, codebook, X, H, W, sufix)
     else:
-        print ("creating fingerprint for word "+_word)
-        create_word_fingerprint(_word, snippets_by_word, codebook, X, H, W, sufix)
+        print("creating fingerprint for word "+_word)
+        # create_word_fingerprint(_word, snippets_by_word, codebook, X, H, W, sufix)
+        # a_original, a_sparse = finger.create_fingerprint(_word, snippets_by_word, codebook, X, H, W, sufix)
+        a_original, a_sparse = finger.create_fingerprint(_word, snippets_by_word, som, X, sufix)
 
-    t2=time()
+    t2 = time()
     print("\nTime taken for processing snippets\n----------------------------------------------\n{} s".format((t2-t1)))
 
 if __name__ == "__main__":
     
     if len(sys.argv) != 2:
-        print ("wrong number of arguments")
-        print ("python .\process_snippets.py <word or dataset>")
+        print("wrong number of arguments")
+        print("python .\process_snippets.py <word or dataset>")
         sys.exit()
     main(sys.argv[1])
 
-#python create_fingerprints.py ceramic
-#python create_fingerprints.py men-dataset
-#python create_fingerprints.py WS353-dataset
+# python create_fingerprints.py sunlight
+# python create_fingerprints.py men-dataset
+# python create_fingerprints.py WS353-dataset
     
 
 
