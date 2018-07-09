@@ -14,13 +14,16 @@ from sqlalchemy import create_engine
 #import conf.conn as cfg
 
 
-def get_cleaned_data(_word=None):
+def get_cleaned_data(_word=None, _limit=None):
     conn_string = 'postgresql://postgres@localhost:5432/sparsenlp'
     engine = create_engine(conn_string)
     sql = "select id, cleaned_text from snippets where cleaned = 't' "
     if _word is not None:
-        sql += "and cleaned_text ilike '%%"+_word+"%%'"
+        sql += "and cleaned_text ilike '%%"+_word+"%%' "
         #sql += " and cleaned_text ilike '%%benfica%%'"
+    if _limit is not None:
+        sql += " and length(cleaned_text) > "+str(_limit)
+        #sql += " limit "+str(_limit)
         
     print (sql)
     dataframe = pd.read_sql_query(sql, con=engine)

@@ -18,6 +18,12 @@ except:
     print('ERROR: ' +str(sys.exc_info()[0]))
 
 
+def scale_fingerprint(file, size):
+    print (file, size)
+    img = Image.open(file)
+    img = img.resize((int(size), int(size)), Image.ANTIALIAS)
+    return img
+
 
 def sparsify_fingerprint(a):
     
@@ -47,35 +53,41 @@ def sparsify_fingerprint(a):
 
     rev = list(reversed(hist[1]))
 
+    print ('filling missing pixels...'+str(pixels_on_missing))
 
-    if pixels_on_missing > 0:
-        print ('filling missing pixels...')
+
+    if pixels_on_missing >= 0:
+        #print ('filling missing pixels...')
         #print ('lower count: ', rev[lower_limit_index + 1])
         #print ('higher count: ', rev[lower_limit_index + 0])
         lower = rev[lower_limit_index + 1]
         higher = rev[lower_limit_index + 0]
         a_copy = np.copy(a)
+    
         counter = 0
         for x in np.nditer(a_copy, op_flags=['readwrite']):
-            if counter < pixels_on_missing:
+            if counter <= pixels_on_missing:
                 if x >= lower and x < higher:
                     x[...] = 1
                     counter += 1
-                    
                 else:
                     x[...] = 0 
             else:
                 x[...] = 0
-
+    
     lower_count = rev[lower_limit_index]
     #print ('lower_count: ', lower_count)
 
     sparsify = lambda t: 1 if t > lower_count else 0
+    
     vfunc = np.vectorize(sparsify)
     b = vfunc(a)
-
-    total = np.sum([a_copy, b], axis=0)
-    return total
+    
+    return b
+    
+    # check why this was set at first place. It leads to fingerprint with 1st row with ones 
+    #total = np.sum([a_copy, b], axis=0)
+    #return total
 
 
 def equalize(h):
@@ -95,26 +107,29 @@ def equalize(h):
 
     return lut
 
-def create_fp_image (a, _word, _sufix):
+
+def create_fp_image(a, _word, _sufix):
     
-    #im = Image.fromarray(a)
+    image_dir = _sufix[1:]
+    if not os.path.exists("./images/"+image_dir):
+        os.makedirs("./images/"+image_dir)
+
     im = Image.fromarray(a.astype('uint8'))
 
-    if os.path.exists("./images/"+_word+_sufix+".bmp"):
-        print ('Removing '+'./images/'+_word+_sufix+'.bmp')
-        os.remove("./images/"+_word+_sufix+".bmp")
+    if os.path.exists("./images/"+image_dir+"/"+_word+_sufix+".bmp"):
+        print('Removing '+'./images/'+image_dir+'/'+_word+_sufix+'.bmp')
+        os.remove("./images/"+image_dir+"/"+_word+_sufix+".bmp")
     
-    im.save("./images/"+_word+_sufix+".png")
-    Image.open("./images/"+_word+_sufix+".png").convert('RGB').save("./images/"+_word+_sufix+".bmp")
+    im.save("./images/"+image_dir+"/"+_word+_sufix+".png")
+    Image.open("./images/"+image_dir+"/"+_word+_sufix+".png").convert('RGB').save("./images/"+image_dir+"/"+_word+_sufix+".bmp")
     
-    
-    im = Image.open("./images/"+_word+_sufix+".bmp")
+    im = Image.open("./images/"+image_dir+"/"+_word+_sufix+".bmp")
     # calculate lookup table
     lut = equalize(im.histogram())
     # map image through lookup table
     im = im.point(lut)
-    im.save("./images/"+_word+_sufix+".bmp")
-    os.remove("./images/"+_word+_sufix+".png")
+    im.save("./images/"+image_dir+"/"+_word+_sufix+".bmp")
+    os.remove("./images/"+image_dir+"/"+_word+_sufix+".png")
 
 
 def create_fingerprint(_word, _snippets_by_word, som, X, sufix):

@@ -4,6 +4,7 @@ from sqlalchemy import create_engine
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
 import utils.evaluation as eval
+import utils.database as db
 from sklearn.datasets.base import Bunch
 import numpy as np
 import scipy
@@ -15,13 +16,10 @@ import pickle
 def get_baseline_vector(_word, voc, X):
     try:
         key = voc[_word]
-
-        #if we want to get poor results
-        #key = voc[_word] + 1
-        #print (X[:, key])
-        #print (X[:, key].toarray().flatten()[37])
     except:
-        key = voc[_word]
+        #key = voc[_word]
+        print (_word)
+        return X[:, 1].toarray().flatten()
     return X[:, key].toarray().flatten()
 
 
@@ -33,7 +31,7 @@ def get_dataframe():
     return pd.read_sql_query(sql, con=engine)
 
 
-def tfidf_vectorizer(dictionary, _datasetname, train_data, reuse=True):
+def tfidf_vectorizer(dictionary, _datasetname, reuse=True):
     
     #reuse = False
 
@@ -44,14 +42,19 @@ def tfidf_vectorizer(dictionary, _datasetname, train_data, reuse=True):
         voc = pickle.load(file)
         file.close()
     else:
+        dataframe = db.get_cleaned_data(None, None)
+        print(dataframe.shape)
+        train_data = dataframe.cleaned_text
         vectorizer = TfidfVectorizer(
                                     lowercase=True,
-                                    vocabulary=dictionary,
+                                    #vocabulary=dictionary,
+                                    #max_df=0.5, 
+                                    #min_df=0.001, 
                                     stop_words='english',
                                     smooth_idf=True,
                                     sublinear_tf=True,
                                     use_idf=True)
-        train_data = dataframe.cleaned_text
+        
         print("vectorizing texts ...")
         
         X = vectorizer.fit_transform(train_data)
@@ -176,45 +179,69 @@ def fetch_ENRG65(_percentage):
         
     return bunch, dictionary
 
+
+def wiki_tfidf(bunch, dictionary, datasetname):
+    
+    voc, X = tfidf_vectorizer(dictionary, datasetname)
+    print(X.shape)
+    print('getting baseline vectors')
+
+    A = np.vstack(get_baseline_vector(word, voc, X) for word in bunch.X[:, 0])
+    B = np.vstack(get_baseline_vector(word, voc, X) for word in bunch.X[:, 1])
+    return A, B
+
+
+def gimme_glove():
+    with open(DIR+'/embeddings/glove.6B/glove.6B.50d.txt', encoding='utf-8') as glove_raw:
+        for line in glove_raw.readlines():
+            splitted = line.split(' ')
+            yield splitted[0], np.array(splitted[1:], dtype=np.float)
+
+
+def glove(bunch, dictionary, datasetname):
+    glove = {w: x for w, x in gimme_glove()}
+
+    print('getting glove vectors')
+    A = np.vstack(np.array(glove[word]) for word in bunch.X[:, 0])
+    B = np.vstack(np.array(glove[word]) for word in bunch.X[:, 1])
+    return A, B
+
+
 DATASETS = {
         "men-dataset": fetch_MEN,
         "WS353-dataset": fetch_WS353,
-        #"SIMLEX999-dataset": fetch_SimLex999,
         "ENTruk-dataset": fetch_ENTruk,
         "EN-RG-65-dataset": fetch_ENRG65
+    }
+
+VECTORS = {
+        "wiki_tfidf": wiki_tfidf,
+        "glove": glove,
     }
 
 DIR = 'C:/Users/andre.silva/web_data/'
 
 if __name__ == "__main__":
     
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         print("wrong number of arguments")
-        print("python .\baseline.py <percentage> <dataset name>")
+        print("python .\baseline.py <percentage> <dataset name> <vectors>")
         sys.exit()
 
-    filepath = 'C:/Users/andre.silva/web_data/similarity/EN-MEN-LEM.txt'
     percentage = int(sys.argv[1])
     dataset = sys.argv[2]
+    vectors = sys.argv[3]
 
-    # w1, w2, score, dictionary = get_benchmark_data(filepath, percentage)
     bunch, dictionary = DATASETS[dataset](percentage)
 
     print('dictionary len is: {}'.format(len(dictionary)))
-    print("Sample data from {}: pair \"{}\" and \"{}\" is assigned score {}".format('MEN dataset', bunch.X[0][0], bunch.X[0][1], bunch.y[0]))
+    print("Sample data from {}: pair \"{}\" and \"{}\" is assigned score {}".format('RG 65 dataset', bunch.X[0][0], bunch.X[0][1], bunch.y[0]))
     print('number of compared pairs: {}'.format(bunch.X.shape))
 
-    dataframe = get_dataframe()
-    print(dataframe.shape)
-    train_data = dataframe.cleaned_text
-    voc, X = tfidf_vectorizer(dictionary, dataset, train_data)
-    print(X.shape)
-    print('getting baseline vectors')
-
-    A = np.vstack(get_baseline_vector(word, voc, X) for word in bunch.X[:, 0])
-    B = np.vstack(get_baseline_vector(word, voc, X) for word in bunch.X[:, 1])
-    print(A.shape, B.shape)
-
+    print (vectors)
+    A, B = VECTORS[vectors](bunch, dictionary, dataset)
+    
+    #print(A.shape, B.shape)
     print('baseline vectors done')
 
     scores1, indexes_to_remove = cosine(A, B)
@@ -227,10 +254,16 @@ if __name__ == "__main__":
 
     # scores1 = ef.cosine(A, B)
     # scores2 = ef.euclidean(A, B)
-    # print('final euclidean distance score is: {}'.format(scipy.stats.spearmanr(scores2, bunch.y).correlation))
+
+
+
 
 # python .\baseline.py 25 men-dataset
-# python .\baseline.py 100 EN-RG-65-dataset
 # python .\baseline.py 100 WS353-dataset
 # python .\baseline.py 100 ENTruk-dataset
+
+
+# python .\baseline.py 100 EN-RG-65-dataset
+# python .\baseline.py 100 EN-RG-65-dataset wiki_tfidf
+# python .\baseline.py 100 EN-RG-65-dataset glove
 
