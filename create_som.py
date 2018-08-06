@@ -1,5 +1,6 @@
 import os, json, sys, csv, shutil
 from time import time
+import ast
 import pandas as pd
 from sqlalchemy import create_engine
 from PIL import Image
@@ -97,16 +98,26 @@ def generate_som(som_params, X, codebook):
 
     db.insert_log(cfg, algo+' trainning', sufix, minutes)
 
+
+
 if __name__ == "__main__":
     
-    if len(sys.argv) != 3:
+    if len(sys.argv) != 4:
         print ("wrong number of arguments")
-        print ("python .\create_som.py <mode> <params>")
+        print ("python .\create_som.py <mode> <library> <options>")
         sys.exit()
     
+    
     mode = sys.argv[1]
-    params = sys.argv[2]
-    t1 = time()
+    algo = sys.argv[2]
+    opts = ast.literal_eval(sys.argv[3])
+    sufix = ''
+
+    id = db.select_log_id(cfg)
+    id += 1
+
+    
+    time1 = datetime.datetime.now()
     
     if mode == 'load_vectors':
         X = load_vectors(params)
@@ -117,62 +128,67 @@ if __name__ == "__main__":
         X = load_vectors(params)
         print (X.shape)
         codebook = load_codebook(params)
-        algo = params.split('_')[0]
-        som_size = params.split('_')[1]
+        
+        som_size = opts['size']
         generate_som({'algo': algo, 'H': som_size, 'W': som_size}, X, codebook)
     elif mode == 'generate_som_from_scratch':
-        algo = params.split('_')[0]
-        som_size = params.split('_')[1]
-        min_paragraph_length = params.split('_')[2]
+        #algo = params.split('_')[0]
+        som_size = opts['size']
+
+        """
         opts = {'n_components': 700,
             'use_hashing' : False,
             'use_idf' : True,
             'n_features' : 10000,
             'minibatch' : False,
             'verbose' : False}
-        train_data = get_train_texts(min_paragraph_length)
+        """
+
+        train_data = get_train_texts(opts['paragraph_length'])
         X = cluster.doc_representation(train_data, opts)
         
         N = X.shape[1]
+        opts['ndimensions'] = N
+        opts['nsnippets'] = X.shape[0]
+        
         H = int(som_size)
         W = int(som_size)
         sufix = '_'+algo+'_'+str(H)+'_'+str(N)+'_'+str(X.shape[0])
 
         if algo in ['SDSOM', 'BSOM']:
             X = sparse.csr_matrix(X)
-            np.savez('./serializations/X'+sufix+'.npz', data=X.data, indices=X.indices, indptr=X.indptr, shape=X.shape)
+            np.savez('./serializations/X_'+str(id)+'.npz', data=X.data, indices=X.indices, indptr=X.indptr, shape=X.shape)
         
-            som_type = {'SDSOM': Som, 'BSOM': BSom, 'MINISOM': MiniSom}
+            som_type = {'SDSOM': Som, 'BSOM': BSom}
             som = som_type[algo](H, W, N, topology.RECT, verbose=True) # , verbose=True
             som.codebook = np.random.rand(H, W, N).astype(som.codebook.dtype, copy=False)
             som.train(X)
-            np.save('./serializations/codebook'+sufix+'.npy', som.codebook)
+            np.save('./serializations/codebook_'+str(id)+'.npy', som.codebook)
         elif algo in ['MINISOMBATCH', 'MINISOMRANDOM']:
-            
-            niterations = int(params.split('_')[3])
 
-            with open('./serializations/X'+sufix+'.npz', 'wb') as f:
+            with open('./serializations/X_'+str(id)+'.npz', 'wb') as f:
                 pickle.dump(X, f)
             
-            N = X.shape[1]  # Nb. features (vectors dimension)
             print('number of features in SOM: {}'.format(N))
             som = MiniSom(H, W, N, sigma=1.0, random_seed=1)
-            #som.random_weights_init(X)
+
+            if opts['initialization']:
+                som.random_weights_init(X)
            
             if algo == 'MINISOMBATCH':
-                som.train_batch(X, niterations)
+                som.train_batch(X, opts['niterations'])
             elif algo == 'MINISOMRANDOM':
-                som.train_random(X, niterations)
+                som.train_random(X, opts['niterations'])
             
-            with open('./serializations/codebook'+sufix+'.npy', 'wb') as f:
+            with open('./serializations/codebook_'+str(id)+'.npy', 'wb') as f:
                 pickle.dump(som.get_weights(), f)
-        
-    t2 = time()
-    print("\nTime taken for processing snippets\n----------------------------------------------\n{} s".format((t2-t1)))
 
-# python create_som.py load_vectors 'SDSOM_64_5545_571698'
-# python create_som.py generate_som_from_codebook 'SDSOM_64_5545_571698'
-# python create_som.py generate_som_from_scratch 'SDSOM_64_1000'
+    time2 = datetime.datetime.now()
+    elapsedTime = time2 - time1
+    minutes = divmod(elapsedTime.total_seconds(), 60)[0]
+    db.insert_log2(cfg, algo, str(opts), minutes)
+    print("\nTime taken for processing \n----------------------------------------------\n{} s".format((time2-time1)))
 
-# python create_som.py generate_som_from_scratch 'MINISOMBATCH_64_750_1000'
-# python create_som.py generate_som_from_scratch 'MINISOMBATCH_somsize_lengthlimit_niterations'
+# python create_som.py generate_som_from_scratch MINISOMBATCH "{'initialization': False, 'size': 64, 'paragraph_length': 750, 'niterations': 1000, 'n_components': 700, 'use_hashing' : False, 'use_idf' : True, 'n_features' : 10000, 'minibatch' : False, 'verbose' : False}"
+# python create_som.py generate_som_from_scratch MINISOMBATCH "{'initialization': True, 'size': 64, 'paragraph_length': 500, 'niterations': 1000, 'n_components': 700, 'use_hashing' : False, 'use_idf' : True, 'n_features' : 10000, 'minibatch' : False, 'verbose' : False}"
+# python create_som.py generate_som_from_scratch MINISOMBATCH "{'initialization': True, 'size': 64, 'paragraph_length': 400, 'niterations': 1000, 'n_components': 700, 'use_hashing' : False, 'use_idf' : True, 'n_features' : 10000, 'minibatch' : False, 'verbose' : False}"

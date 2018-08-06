@@ -29,6 +29,24 @@ def get_cleaned_data(_word=None, _limit=None):
     dataframe = pd.read_sql_query(sql, con=engine)
     return dataframe
 
+
+def select_log_id(cfg):
+    conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    cur.execute("select max(id) from logs2")
+    return cur.fetchall()[0][0]
+
+def update_score(cfg, _id, _similarity):
+    conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    cur.execute("update logs2 set score = %s where id = %s", (round(_similarity, 2), _id))
+    cur.close()
+    conn.commit()
+    conn.close()
+
+
 def insert_score(cfg, _params, _datasets, _measure, _value):
     conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
     conn = psycopg2.connect(conn_string)
@@ -57,9 +75,29 @@ def insert_log(cfg, _operation, _params, _minutes):
     conn.commit()
     conn.close()
 
+
+def get_loginfo(cfg, _id):
+    conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    cur.execute("select * from logs2 where id = %s", (_id,))
+    return cur.fetchall()
+
+
+def insert_log2(cfg, _algo, _options, _minutes):
+    conn_string = "dbname="+cfg.conn_string['dbname']+" user="+cfg.conn_string['user']+" password="+cfg.conn_string['password']
+    conn = psycopg2.connect(conn_string)
+    cur = conn.cursor()
+    cur.execute("INSERT INTO logs2 (algo, options, minutes, date) VALUES (%s, %s, %s, now())", (_algo, _options, _minutes))
+    cur.close()
+    conn.commit()
+    conn.close()
+
+
 def get_tables_sizes(cfg):
     table_sizes = get_table_size(cfg)
     return table_sizes
+
 
 def update_stats(cfg, data, vocabulary):
     """

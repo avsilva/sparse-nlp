@@ -27,7 +27,8 @@ def scale_fingerprint(file, size):
 
 def sparsify_fingerprint(a):
     
-    hist = np.histogram(a, bins=10, range=None, normed=False, weights=None, density=None)
+    #hist = np.histogram(a, bins=10, range=None, normed=False, weights=None, density=None)
+    hist = np.histogram(a, bins='scott', range=None, normed=False, weights=None, density=None)
     #print (hist[0])
     #print (hist[1])
 
@@ -82,7 +83,11 @@ def sparsify_fingerprint(a):
     
     vfunc = np.vectorize(sparsify)
     b = vfunc(a)
-    
+
+    #hist = np.histogram(b, bins=5, range=None, normed=False, weights=None, density=None)    
+    #print (hist[0])
+    #print (hist[1])
+
     return b
     
     # check why this was set at first place. It leads to fingerprint with 1st row with ones 
@@ -110,26 +115,26 @@ def equalize(h):
 
 def create_fp_image(a, _word, _sufix):
     
-    image_dir = _sufix[1:]
+    image_dir = _sufix
     if not os.path.exists("./images/"+image_dir):
         os.makedirs("./images/"+image_dir)
 
     im = Image.fromarray(a.astype('uint8'))
 
-    if os.path.exists("./images/"+image_dir+"/"+_word+_sufix+".bmp"):
-        print('Removing '+'./images/'+image_dir+'/'+_word+_sufix+'.bmp')
-        os.remove("./images/"+image_dir+"/"+_word+_sufix+".bmp")
+    if os.path.exists("./images/"+image_dir+"/"+_word+".bmp"):
+        print('Removing '+'./images/'+image_dir+'/'+_word+'.bmp')
+        os.remove("./images/"+image_dir+"/"+_word+".bmp")
     
-    im.save("./images/"+image_dir+"/"+_word+_sufix+".png")
-    Image.open("./images/"+image_dir+"/"+_word+_sufix+".png").convert('RGB').save("./images/"+image_dir+"/"+_word+_sufix+".bmp")
+    im.save("./images/"+image_dir+"/"+_word+".png")
+    Image.open("./images/"+image_dir+"/"+_word+".png").convert('RGB').save("./images/"+image_dir+"/"+_word+".bmp")
     
-    im = Image.open("./images/"+image_dir+"/"+_word+_sufix+".bmp")
+    im = Image.open("./images/"+image_dir+"/"+_word+".bmp")
     # calculate lookup table
     lut = equalize(im.histogram())
     # map image through lookup table
     im = im.point(lut)
-    im.save("./images/"+image_dir+"/"+_word+_sufix+".bmp")
-    os.remove("./images/"+image_dir+"/"+_word+_sufix+".png")
+    im.save("./images/"+image_dir+"/"+_word+".bmp")
+    os.remove("./images/"+image_dir+"/"+_word+".png")
 
 
 def create_fingerprint(_word, _snippets_by_word, som, X, sufix):

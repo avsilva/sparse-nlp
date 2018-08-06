@@ -2,6 +2,7 @@
 import sys
 import os.path
 from time import time
+import ast
 import numpy as np
 import pandas as pd
 import pickle
@@ -15,9 +16,9 @@ from PIL import Image
 import utils.database as db
 import conf.conn as cfg
 
-#from skimage.measure import structural_similarity as ssim
+# from skimage.measure import structural_similarity as ssim
 from skimage.measure import compare_ssim  as ssim
-#import cv2
+# import cv2
 
 
 # DIR = '/opt/sparse-nlp/datasets'
@@ -39,21 +40,21 @@ def euclidean(A, B):
 
 
 def struc_sim(A, B):
-    return np.array([ssim(v1, v2) for v1, v2 in zip(A, B)])
-    
-    
+    return np.array([ssim(v1, v2, win_size=33) for v1, v2 in zip(A, B)])
+    # return np.array([ssim(v1, v2) for v1, v2 in zip(A, B)])
+     
 
 def similarbits(A, B):
     C = A*B
     return np.array([ v1.sum() for v1 in C])  # sum number of 1 bits
     
 
-def get_fingerprint_from_image(_word, _fingerprints, _mode):
+def get_fingerprint_from_image(_word, _id, _mode):
     
     # fp_id = _fingerprints
-    fp_arr = _fingerprints.split('_')
-    basename = '_'.join([fp_arr[x] for x in range(4)])
-    filepath = './images/'+_fingerprints+'/'+_word+'_'+basename+'.bmp'
+    #fp_arr = _fingerprints.split('_')
+    #basename = '_'.join([fp_arr[x] for x in range(4)])
+    filepath = './images/fp_'+_id+'/'+_word+'.bmp'
     
     im = Image.open(filepath)
     r, g, b = im.split()
@@ -155,7 +156,7 @@ def fetch_ENTruk(_fingerprints, _distance_measure, _percentage):
     pass
 
 
-def fetch_ENRG65(_fingerprints, _measure, _percentage):
+def fetch_ENRG65(_id, _measure, _percentage):
     filepath = DIR+'/similarity/EN-RG-65.txt'
     file = open(filepath, 'r', encoding='utf-8')
     score = []
@@ -177,25 +178,22 @@ def fetch_ENRG65(_fingerprints, _measure, _percentage):
     
     if _measure == 'ssim':
         mode = '2darray'
-        A = [get_fingerprint_from_image(word, _fingerprints, mode) for word in bunch.X[:, 0]]
-        B = [get_fingerprint_from_image(word, _fingerprints, mode) for word in bunch.X[:, 1]]
+        A = [get_fingerprint_from_image(word, _id, mode) for word in bunch.X[:, 0]]
+        B = [get_fingerprint_from_image(word, _id, mode) for word in bunch.X[:, 1]]
     else:
         mode = 'flatten'
-        A = np.vstack(get_fingerprint_from_image(word, _fingerprints, mode) for word in bunch.X[:, 0])
-        B = np.vstack(get_fingerprint_from_image(word, _fingerprints, mode) for word in bunch.X[:, 1])
+        A = np.vstack(get_fingerprint_from_image(word, _id, mode) for word in bunch.X[:, 0])
+        B = np.vstack(get_fingerprint_from_image(word, _id, mode) for word in bunch.X[:, 1])
 
-    print (len(A))
     scores = distance_measure(A, B)
-    print (len(scores))
-    print (len(bunch.y))
     return scipy.stats.spearmanr(scores, bunch.y).correlation
 
 
-def compare_words(_fingerprints, _measure, _words):
-    print (_fingerprints, _measure, _words)
+def compare_words(_id, _measure, _words):
+    print (_id, _measure, _words)
     distance_measure = distances[_measure]
-    A = np.vstack(get_fingerprint_from_image(_words.split(' ')[0], _fingerprints, 'flatten'))
-    B = np.vstack(get_fingerprint_from_image(_words.split(' ')[1], _fingerprints, 'flatten'))
+    A = np.vstack(get_fingerprint_from_image(_words.split(' ')[0], _id, 'flatten'))
+    B = np.vstack(get_fingerprint_from_image(_words.split(' ')[1], _id, 'flatten'))
 
     #print (type(A))
     #print (A)
@@ -208,26 +206,23 @@ def compare_words(_fingerprints, _measure, _words):
         dist2 += v1
 
 
-    img1 = get_fingerprint_from_image(_words.split(' ')[0], _fingerprints, '2darray')
-    img2 = get_fingerprint_from_image(_words.split(' ')[1], _fingerprints, '2darray')
+    img1 = get_fingerprint_from_image(_words.split(' ')[0], _id, '2darray')
+    img2 = get_fingerprint_from_image(_words.split(' ')[1], _id, '2darray')
     #print (img1)
     s = ssim(img1, img2)
      
-    
     print ("{} distance on words: {} is {}".format(_measure, _words, round(dist, 2)))
     print ("similar bits on words: {} is {}".format(_words, dist2))
     print ("SSIM on words: {} is {}".format(_words, s))
 
-def main(_dataset, _fingerprints, _measure, _percentage):
-    
+
+def main(_dataset, _id, _measure, _percentage):
     
     t1=time()
-
-    #distance_measure = distances[_measure]
-    
     print ("creating bunch for dataset "+_dataset)
-    similarity = datasets[_dataset](_fingerprints, _measure, _percentage)
-    db.insert_score(cfg, _fingerprints, _dataset, _measure, similarity)
+    similarity = datasets[_dataset](_id, _measure, _percentage)
+    #db.insert_score(cfg, fingerprints, _dataset, _measure, similarity)
+    db.update_score(cfg, _id, similarity)
     print ("Spearman correlation of scores on {}: {}".format(_dataset, similarity))
     
     t2=time()
@@ -245,10 +240,10 @@ if __name__ == "__main__":
 
     # Define datasets
     datasets = {
-        "men-dataset": fetch_MEN,
-        "WS353-dataset": fetch_WS353,
-        "ENTruk-dataset": fetch_ENTruk,
-        "EN-RG-65-dataset": fetch_ENRG65
+        "men": fetch_MEN,
+        "WS353": fetch_WS353,
+        "ENTruk": fetch_ENTruk,
+        "EN-RG-65": fetch_ENRG65
     }
     
     if len(sys.argv) != 6:
@@ -260,16 +255,10 @@ if __name__ == "__main__":
     else:
         compare_words(sys.argv[2], sys.argv[3], sys.argv[5])
 
-# python evaluate_fingerprints.py men-dataset BSOM_64_1000_305554 cosine 100
-# python evaluate_fingerprints.py WS353-dataset BSOM_64_1000_305554 cosine 100
-
-# python evaluate_fingerprints.py EN-RG-65-dataset SDSOM_64_5545_571698_id23 cosine 100 'car automobile'
-# python evaluate_fingerprints.py EN-RG-65-dataset SDSOM_64_5545_571698_id23 cosine 100 all
-# python evaluate_fingerprints.py EN-RG-65-dataset SDSOM_64_5545_571698_id23 ssim 100 all
-# python evaluate_fingerprints.py EN-RG-65-dataset SDSOM_64_5545_571698_id23_size32 cosine 100 'car automobile'
-# python evaluate_fingerprints.py EN-RG-65-dataset SDSOM_64_5545_571698_id23_size32 cosine 100 'fruit furnace'
-# python evaluate_fingerprints.py EN-RG-65-dataset SDSOM_64_5545_571698_id23_size32 cosine 100 all
-# python evaluate_fingerprints.py EN-RG-65-dataset SDSOM_64_5545_571698_id23_size32_sparsify cosine 100 all
+# python evaluate_fingerprints.py EN-RG-65 4 cosine 100 'car automobile'
+# python evaluate_fingerprints.py EN-RG-65 4 cosine 100 'automobile wizard'
+# python evaluate_fingerprints.py EN-RG-65 4 cosine 100 all
+# python evaluate_fingerprints.py EN-RG-65 5 cosine 100 all
 
 
 
