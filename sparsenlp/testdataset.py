@@ -5,7 +5,7 @@ sys.path.append(os.path.abspath('./utils'))
 import database as db
 import corpora as corp
 
-DIR = 'C:/Users/andre.silva/web_data/'
+DIR = './datasets/'
 
 
 class TestDataset():
