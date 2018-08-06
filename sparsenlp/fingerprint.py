@@ -35,7 +35,8 @@ class FingerPrint():
             with open('./serializations/codebook_{}.npy'.format(self.opts['id']), 'rb') as handle:
                 codebook = pickle.load(handle)
             SOM = MiniSom(H, W, N, sigma=1.0, random_seed=1)
-            SOM.load_weights(codebook)
+            #SOM.load_weights(codebook)
+            SOM._weights = codebook
 
             with open('./serializations/X_{}.npz'.format(self.opts['id']), 'rb') as handle:
                 X = pickle.load(handle)
