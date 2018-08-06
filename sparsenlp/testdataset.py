@@ -50,16 +50,13 @@ class TestDataset():
             data = self._fetch_ENRG65(mode)
         return data
 
-    def get_snippets_by_word(self):
+    def get_snippets_by_word(self, sentences):
         
         words = self.fetch('distinct_words')
 
         filepath = './serializations/snippets_by_word_{}.pkl'.format(self.id)
         if (os.path.isfile(filepath) is False):
-            dataframe = db.get_cleaned_data(None, self.sentece_length)
-            print('dataframe shape {} '.format(dataframe.shape))
-            snippets_by_word = corp.get_snippets_and_counts(dataframe, words)
-
+            snippets_by_word = self.get_snippets_and_counts(sentences, words)
             with open('./serializations/snippets_by_word_{}.pkl'.format(self.id), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
         else:
@@ -67,5 +64,28 @@ class TestDataset():
                 snippets_by_word = pickle.load(handle)
 
         return snippets_by_word
+
+    def get_snippets_and_counts(self, _dataframe, _word):
+        
+        snippets_and_counts = {}
+        for w in _word:
+            info = {'idx': 0, 'counts': 0}
+            snippets_and_counts[w] = [info]
+
+        for index, row in _dataframe.iterrows():
+            tokens = row['cleaned_text'].split()
+            for w in _word:
+                
+                if tokens.count(w) != 0:
+                    info = {'idx': index, 'counts': tokens.count(w)}
+                    #if w not in snippets_and_counts:
+                    #    snippets_and_counts[w] = [info]
+                    #else:
+                    snippets_and_counts[w].append(info)
+
+            if index % 100000 == 0:
+                print ('index '+str(index))
+        
+        return snippets_and_counts
 
     

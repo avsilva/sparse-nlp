@@ -32,7 +32,8 @@ class SentenceSom():
             sentece_length = self.sentece_length
 
         df_train = db.get_cleaned_data(None, sentece_length)
-        self.train_data = df_train.cleaned_text
+        #self.train_data = df_train.cleaned_text
+        self.train_data = df_train
         return self.train_data
 
     def serialize_sentences_text(self, path):
@@ -49,7 +50,7 @@ class SentenceSom():
     def create_sentence_vector(self, data):
         """Creates vector representation of sentences"""
         vectors = vect.SentenceVect(self.opts)
-        self.X = vectors.sentence_representation(data)
+        self.X = vectors.sentence_representation(data.cleaned_text)
         return self.X
 
     def serialize_sentence_vector(self, X):
@@ -108,25 +109,32 @@ if __name__ == '__main__':
     opts = {'id': 9, 'algorithm': 'MINISOMBATCH', 'initialization': True, 'size': 64, 'paragraph_length': 1500, 'niterations': 1000, 'n_components': 700, 'use_hashing' : False, 'use_idf' : True, 'n_features' : 10000, 'minibatch' : False, 'verbose' : False, 'testdataset': 'EN-RG-65'}
     
     sentencesom = SentenceSom(opts)
-    
-    #sentencesom.som_size
     #sentences = sentencesom.get_sentences()
+    #print (sentences.columns)
+    
     #sentencesom.serialize_sentences_text('./serializations/sentences/')
-    #sentences = sentencesom.read_serialized_sentences_text('./serializations/sentences/')
+    
+    sentences = sentencesom.read_serialized_sentences_text('./serializations/sentences/')
+    print (sentences.columns)
+    print (sentences.shape)
+    
     #X = sentencesom.create_sentence_vector(sentences)
     #sentencesom.serialize_sentence_vector(X)
+    
+    
     #X = sentencesom.read_serialized_sentences_vector('./serializations/')
     #sentencesom.train_som(X)
+    
 
     dataset_enrg65 = testdataset.TestDataset(opts)
-    words = dataset_enrg65.fetch('distinct_words')
-    evaluation_set = dataset_enrg65.fetch('data')
-    snippets_by_word = dataset_enrg65.get_snippets_by_word()
+    snippets_by_word = dataset_enrg65.get_snippets_by_word(sentences)
     # print (snippets_by_word['car'])
-
-    # create fingerprint instance passing opts and snippets_by_word dictionary
     fingerprints_enrg65 = fp.FingerPrint(opts)
-    # fingerprints_enrg65.create_fingerprints(snippets_by_word, words)
+    words = dataset_enrg65.fetch('distinct_words')
+    #fingerprints_enrg65.create_fingerprints(snippets_by_word, words)
+    
+
+    evaluation_set = dataset_enrg65.fetch('data')
     fingerprints_enrg65.evaluate(evaluation_set, 'cosine')
 
 
