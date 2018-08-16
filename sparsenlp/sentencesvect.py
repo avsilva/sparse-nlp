@@ -6,17 +6,42 @@ from time import time
 
 
 class SentenceVect():
+    """Sentence Vector Representation
+
+        The instance is intended for further processing including vectorization and clustering
+
+        Attributes
+        ----------
+        opts : dict
+            instance settings (e.g n_features, use_idf)
+        
+        Methods
+        -------
+        sentence_representation()
+            returns text vector representation
+
+    """
     
     def __init__(self, opts):
         """Initializes a Sentence Vector Representation.
 
         """
-        
+
         self.opts = opts
-        self.X = None
 
     def sentence_representation(self, data):
-        """Do the sentence vector representation."""
+        """Do the sentence vector representation.
+        
+        Parameters
+        ---------
+        data : numpy ndarray
+            pandas series with text data (snippets)
+
+        Returns
+        -------
+        numpy ndarray
+            text vector representation
+        """
         
         if self.opts['use_hashing']:
             if self.opts['use_idf']:
@@ -47,7 +72,7 @@ class SentenceVect():
             normalizer = Normalizer(copy=False)
             lsa = make_pipeline(svd, normalizer)
 
-            self.X = lsa.fit_transform(X)
+            X = lsa.fit_transform(X)
 
             print("done in %fs" % (time() - t0))
 
@@ -55,4 +80,4 @@ class SentenceVect():
             print("Explained variance of the SVD step: {}%".format(
                 int(explained_variance * 100)))
 
-        return self.X
+        return X

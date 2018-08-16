@@ -1,14 +1,43 @@
-## Planning
+# SparseNLP
+
+## Introduction
+
+- Word Embeddings are an important component of many language models capable of producing
+ state of the art results in several NLP tasks;
+- SparseNLP proposes an alternative approach for deriving word embeddings. In contrast with the tradicional dense vector representations, it creates sparse distributed representations (SDR) for each word; the representation shares the main idea of a word embedding, which was formulated by Firth in 1957: "a word is characterized by the company it keeps";
+- Validation of the whole methodology is done by using these word embeddings as language models in several Natural Language Processing tasks;
+
+
+## Installation
+
+git clone https://github.com/avsilva/sparse-nlp.git
+
+TODO:
+pip install -r requirements.txt
+
+## How to use it
+
+In order to use SparseNLP you need your data stored in a database table with 2 columns: 
+- id (int): primary key
+-  cleaned_text (str): text tokens for each sentence
+
+## Tests
+
+- nosetests --cover-package=.\sparsenlp --with-coverage -v
+  
+- python -m unittest -v
+
+## Project Planning
 
 1. Training Corpora Definition - 16 Feb
 2. Corpora pre-processing - 28 Feb
 3. Sentence tokenization - 12 Mar
 4. Sentence vetorization - 26 Mar
 5. Word to sentence database - 9 Apr
-6. SOM of sentences - 23 Apr
+6. Cluster sentences - 23 Apr
 7. Word fingerprint - 4 May
 8. Text fingerprint - 17 May
-9. Evaluation
+9. Evaluation - 30 Aug
 
 
 ## 1. Training Corpora Definition
@@ -54,46 +83,3 @@ other alternative methods: [github - mfaruqui/eval-word-vectors](https://github.
 
 
 
-
-
-
-
-
-
-
-
-
-
-### Markdown help
-
-You can use the [editor on GitHub](https://github.com/avsilva/sparse-nlp/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
-
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
-
-
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
-
-```markdown
-Syntax highlighted code block
-
-# Header 1
-## Header 2
-### Header 3
-
-- Bulleted
-- List
-
-**Bold** and _Italic_ and `Code` text
-
-![Image](src)
-```
-
-For more details see [GitHub Flavored Markdown](https://guides.github.com/features/mastering-markdown/).
-
-### Jekyll Themes
-
-Your Pages site will use the layout and styles from the Jekyll theme you have selected in your [repository settings](https://github.com/avsilva/sparse-nlp/settings). The name of this theme is saved in the Jekyll `_config.yml` configuration file.
-
-### Support or Contact
-
-Having trouble with Pages? Check out our [documentation](https://help.github.com/categories/github-pages-basics/) or [contact support](https://github.com/contact) and we’ll help you sort it out.

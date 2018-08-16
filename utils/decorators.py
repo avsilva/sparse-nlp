@@ -54,6 +54,8 @@ def create_log(func):
                 today = datetime.datetime.now()
                 args[1]['date'] = '{}-{}-{} {}:{}'.format(today.day, today.month, today.year,  today.hour,  today.minute)
                 handle.write('{}\n'.format(args[1]))
+        # else:
+        #    raise ValueError('Log already exists')
         
         return result
 
@@ -96,14 +98,12 @@ def update_result_log(func):
             raise ValueError('Log ID does not exist.')
         
         log = load_logs(logfile)
-        print (log)
         
         result = func(*args, **kwargs)  
         result = float(result)
         if math.isnan(result) is True:
             result = 'nan'
         update = {args[2]: result}
-        #id = args[0].opts['id']
         update_log(logfile, log, update)
         
         return result

@@ -1,9 +1,7 @@
 import os
 import sys
 import pickle
-sys.path.append(os.path.abspath('./utils'))
-import database as db
-import corpora as corp
+import pandas as pd
 
 DIR = './datasets/'
 
@@ -50,13 +48,14 @@ class TestDataset():
             data = self._fetch_ENRG65(mode)
         return data
 
-    def get_snippets_by_word(self, sentences):
+    def get_snippets_by_word(self, path='./serializations/sentences/'):
         
         words = self.fetch('distinct_words')
+        sentences = self._read_serialized_sentences_text(path)
 
         filepath = './serializations/snippets_by_word_{}.pkl'.format(self.id)
         if (os.path.isfile(filepath) is False):
-            snippets_by_word = self.get_snippets_and_counts(sentences, words)
+            snippets_by_word = self._get_snippets_and_counts(sentences, words)
             with open('./serializations/snippets_by_word_{}.pkl'.format(self.id), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
         else:
@@ -65,7 +64,12 @@ class TestDataset():
 
         return snippets_by_word
 
-    def get_snippets_and_counts(self, _dataframe, _word):
+    def _read_serialized_sentences_text(self, path):
+        """Loads Serialized dataframe text sentences"""
+        
+        return pd.read_pickle('{}{}.bz2'.format(path, self.sentece_length), compression="bz2")
+
+    def _get_snippets_and_counts(self, _dataframe, _word):
         
         snippets_and_counts = {}
         for w in _word:
