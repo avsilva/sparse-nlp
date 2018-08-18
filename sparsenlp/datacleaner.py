@@ -74,7 +74,7 @@ class DataCleaner():
     def tokenize_pandas_column(self, column, num_processes=4):
         """Tokenines text column into new DataFrame column"""
 
-        num_processes = multiprocessing.cpu_count() - 1
+        #num_processes = multiprocessing.cpu_count() - 1
         with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
             # self.data['tokenized'] = list(pool.map(self.clean, self.data['text'], chunksize=10))
             self.data['tokenized'] = list(tqdm.tqdm(pool.map(self.clean, self.data[column], chunksize=10), total=self.data.shape[0]))
