@@ -106,7 +106,8 @@ def clean_text(_text, **kwargs):
     tokens = []
     if type(_text) is str:
         snippet = remove_square_brackets(_text)
-        tokens.append(get_tokens(snippet, **kwargs))
+        #tokens.append(get_tokens(snippet, **kwargs))
+        tokens = get_tokens(snippet, **kwargs)
 
     elif type(_text) is dict:
         

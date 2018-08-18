@@ -113,7 +113,7 @@ class SentenceCluster():
         if isinstance(self.__X, numpy.ndarray):
             with open('./serializations/X_{}.npz'.format(self.opts['id']), 
                       'wb') as handle:
-                pickle.dump(self.__X, handle)
+                pickle.dump(self.__X, handle, protocol=4)
         else:
             raise ValueError('Sentence vector type not expected')
 

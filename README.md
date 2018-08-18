@@ -23,9 +23,20 @@ In order to use SparseNLP you need your data stored in a database table with 2 c
 
 ## Tests
 
-- nosetests --cover-package=.\sparsenlp --with-coverage -v
-  
+- nosetests --cover-package=.\sparsenlp --with-coverage --nologcapture -x
 - python -m unittest -v
+
+  (run just one class test)
+- python -m unittest -q tests.test_datacleaner.TestDataClean
+- py.test -q -s tests/test_datacleaner.py::TestDataClean
+
+ (run just one functional test)
+
+ - python -m unittest -q tests.test_datacleaner.TestDataClean.test_ingestfiles_json_to_dict
+
+
+
+
 
 ## Project Planning
 
