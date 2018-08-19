@@ -81,3 +81,20 @@ class SentenceVect():
                 int(explained_variance * 100)))
 
         return X
+
+    def check_same_sentence_vector(self, results):
+        
+        keys = ['paragraph_length', 'n_features', 'n_components', 'use_idf', 'use_hashing']
+
+        for result in results:
+            
+            equal = True
+            for key in keys:
+                if result[key] != self.opts[key]:
+                    equal = False
+                    continue
+
+            if equal is True:
+                return result['id']
+            
+        return False

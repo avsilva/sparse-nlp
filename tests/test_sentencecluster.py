@@ -22,10 +22,10 @@ class TestSentenceCluster(unittest.TestCase):
         dataframe = self.cluster.serialize_sentences()
         self.assertIsInstance(dataframe, pandas.core.frame.DataFrame)
     
-    def test_set_sentence_vector(self):
+    def test_create_sentence_vector(self):
         """A sparse crs is correctly returned?"""
         
-        X = self.cluster.set_sentence_vector()
+        X = self.cluster.create_sentence_vector()
         self.assertIsInstance(X, numpy.ndarray)
 
     def test_cluster_with_kmeans_minibatch(self):
@@ -33,7 +33,7 @@ class TestSentenceCluster(unittest.TestCase):
 
         self.cluster.opts['minibatch'] = True
         size = self.cluster.opts['size'] * self.cluster.opts['size']
-        X = self.cluster.set_sentence_vector()
+        X = self.cluster.create_sentence_vector()
         cluster_labels = self.cluster.create_kmeans_minibatch_cluster(size)
         self.assertEqual(X.shape[0], len(cluster_labels))
 

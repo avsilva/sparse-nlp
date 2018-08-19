@@ -5,6 +5,7 @@ import numpy
 import pickle
 from minisom import MiniSom
 import sparsenlp.sentencesvect as vect
+import sparsenlp.modelresults as modelres
 import utils.database as db
 import utils.decorators as decorate
 from sklearn.cluster import KMeans, MiniBatchKMeans
@@ -26,7 +27,7 @@ class SentenceCluster():
         -------
         serialize_sentences()
             Get sentences from database and serialize to file
-        set_sentence_vector()
+        create_sentence_vector()
             Creates vector representation of sentences
 
     """
@@ -88,7 +89,7 @@ class SentenceCluster():
         return self.__train_data
     
     @decorate.elapsedtime_log
-    def set_sentence_vector(self):
+    def create_sentence_vector(self):
         """Creates vector representation of sentences
         
         Returns
@@ -101,10 +102,20 @@ class SentenceCluster():
         if (os.path.isfile(filepath) is True):
             self.__X = self._read_serialized_sentences_vector()
         else:
-            data = self._read_serialized_sentences_text()
+            
             vectors = vect.SentenceVect(self.opts)
-            self.__X = vectors.sentence_representation(data.cleaned_text)
-            self._serialize_sentence_vector()
+            results = modelres.ModelResults('./results2.json')
+            #print(results.get_results()) 
+            result_id = vectors.check_same_sentence_vector(results.get_results())
+
+            if result_id is not False:
+                print ('Using existing vector representation: id {}'.format(result_id))
+                with open('{}X_{}.npz'.format(self.path, result_id), 'rb') as handle:
+                    self.__X = pickle.load(handle)
+            else:
+                data = self._read_serialized_sentences_text()
+                self.__X = vectors.sentence_representation(data.cleaned_text)
+                self._serialize_sentence_vector()
         return self.__X
         
     def _serialize_sentence_vector(self):
@@ -129,7 +140,7 @@ class SentenceCluster():
     def cluster(self):
         """Clusters sentence vectors using the instance algorithm"""
 
-        self._read_serialized_sentences_vector()
+        #self._read_serialized_sentences_vector()
 
         # dict self.algos contains mapping of algorithm to clustering method
         codebook = self.algos[self.opts['algorithm']]()

@@ -111,7 +111,7 @@ class DataCleaner():
         """Tokenines text column into new DataFrame column"""
 
         self.data.to_pickle('{}/{}'.format(path, filename), 
-                             compression='bz2')
+                            compression='bz2')
 
     def sentence_segmentation(self, input, re_paragraph_splitter):
         """Takes input and splits into a list of paragraphs (snippets)"""
@@ -120,21 +120,29 @@ class DataCleaner():
         return snippets
 
     def explode_dataframe_in_snippets(self, column, re_paragraph_splitter):
-        """Takes instance data dataframe and returns another dataframe with each text row splited into snippets"""
+        """Takes instance data dataframe and returns another dataframe with
+            each text row splited into snippets
+        
+        """
                 
-        new_df = pd.DataFrame(columns=self.data.columns)
+        #new_df = pd.DataFrame(columns=self.data.columns)
         sLength = len(self.data[column])
         i = 0
+
+        sentences = []
         for index, row in self.data.iterrows():
             
-            if index % 1000 == 0:
+            if index % 50 == 0:
                 print('exploding {} th row of {}'.format(index, sLength))
 
             snippets = self.sentence_segmentation(row[column], re_paragraph_splitter)
             for snippet in snippets:
-                new_df = new_df.append({'id': i, 'text': snippet, 'text_length': len(snippet)}, ignore_index=True)
+                #new_df = new_df.append({'id': row['id'], 'text': snippet, 'text_length': len(snippet)}, ignore_index=True)
+                sentences.append({'id': row['id'], 'text': snippet, 'text_length': len(snippet)})
                 i += 1
-        self.data = new_df
+        
+        df = pd.DataFrame(sentences)
+        self.data = df
         return new_df
         
 

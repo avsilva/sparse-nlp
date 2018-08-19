@@ -5,12 +5,54 @@ import pickle
 from PIL import Image
 import operator
 from functools import reduce
+import concurrent.futures
 import pandas as pd
 from sklearn.datasets.base import Bunch
 from scipy.spatial import distance
 import scipy
 from minisom import MiniSom
 import utils.decorators as decorate
+import itertools
+from functools import partial
+#from multiprocessing import Pool, RawArray
+import multiprocessing as mp
+    
+var_dict = {}
+
+
+def init_worker(H, W, N, codebook):
+    # Using a dictionary is not strictly necessary. You can also
+    # use global variables.
+    var_dict['H'] = H
+    var_dict['W'] = W
+    var_dict['N'] = N
+    var_dict['codebook'] = codebook
+
+def create_fp2(word_vectors):
+
+    SOM = MiniSom(var_dict['H'], var_dict['W'], var_dict['N'], sigma=1.0, random_seed=1)
+    SOM._weights = var_dict['codebook']
+    #a = np.zeros((var_dict['H'], var_dict['W']), dtype=np.int)
+
+    idx = word_vectors['idx']
+    bmu = SOM.winner(word_vectors['vector'])
+    return {word_vectors['counts']: bmu}
+        
+
+def create_fp(word_vectors):
+    
+    SOM = MiniSom(var_dict['H'], var_dict['W'], var_dict['N'], sigma=1.0, random_seed=1)
+    SOM._weights = var_dict['codebook']
+    a = np.zeros((var_dict['H'], var_dict['W']), dtype=np.int)
+
+    for key, value in word_vectors.items():
+        #print (key, type(value), len(value))
+        for val in value:
+            idx = val['idx']
+            bmu = SOM.winner(val['vector'])
+            a[bmu[0], bmu[1]] += val['counts']
+            
+    return {key: a}
 
 
 class FingerPrint():
@@ -56,7 +98,7 @@ class FingerPrint():
             words = words.split(',')
 
         self.algos[self.opts['algorithm']](snippets_by_word, words)
-            
+
     def _kmeans(self, snippets_by_word, words):
         """Creates fingerprints using kmeans codebook.
         
@@ -103,21 +145,62 @@ class FingerPrint():
         words : list
             words for which fingerprint will be created
         """
-
+        
         H = int(self.opts['size'])
         W = int(self.opts['size'])
         N = int(self.opts['n_components'])
         with open('./serializations/codebook_{}.npy'.format(self.opts['id']), 'rb') as handle:
-                codebook = pickle.load(handle)
+            codebook = pickle.load(handle)
         SOM = MiniSom(H, W, N, sigma=1.0, random_seed=1)
         SOM._weights = codebook
 
         with open('./serializations/X_{}.npz'.format(self.opts['id']), 'rb') as handle:
             X = pickle.load(handle)
+
+        num_processes =  mp.cpu_count() -1
+
+        """
+        word_vectors = []
+        for word in words:
+            a = []
+            word_counts = snippets_by_word[word]
+            
+            for info in word_counts[1:]:
+                idx = info['idx']
+                a.append({'idx': idx, 'counts': info['counts'], 'vector': X[idx]})
+            print (len(a))    
+            with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
+                results = pool.map(create_fp2, a)
+                #print('Results (pool):\n', results)
+        """
+          
+        word_vectors = []
+        for word in words:
+            a = []
+            word_counts = snippets_by_word[word]
+            
+            for info in word_counts[1:]:
+                idx = info['idx']
+                a.append({'idx': idx, 'counts': info['counts'], 'vector': X[idx]})
+            word_vectors.append({word: a})        
+
+        with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
+            results = pool.map(create_fp, word_vectors)
+            #results = pool.starmap(create_fp, zip(words, word_vectors))
+            #print('Results (pool):\n', results)
+            for fingerprint in results:
+                #print (fingerprint)
+                for key, value in fingerprint.items():
+                    a = self._sparsify_fingerprint(value)
+                    self._create_fp_image(a, key+'_', 'fp_{}'.format(self.opts['id']))
         
+
+       
+        
+        """
         for word in words:
             word_counts = snippets_by_word[word]
-            #print(word_counts)
+            print(word_counts)
             a = np.zeros((H, W), dtype=np.int)
 
             for info in word_counts[1:]:
@@ -126,9 +209,10 @@ class FingerPrint():
                 bmu = SOM.winner(X[idx])
                 a[bmu[0], bmu[1]] += info['counts']
 
+            # np.savetxt('./images/fp_67/'+word+'.txt', a, fmt='%10.0f')
             a = self._sparsify_fingerprint(a)
             self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
-    
+        """
     def _sparsify_fingerprint(self, a):
         
         #hist = np.histogram(a, bins=10, range=None, normed=False, weights=None, density=None)
