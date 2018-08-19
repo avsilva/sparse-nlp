@@ -143,6 +143,6 @@ class DataCleaner():
         
         df = pd.DataFrame(sentences)
         self.data = df
-        return new_df
+        return df
         
 
