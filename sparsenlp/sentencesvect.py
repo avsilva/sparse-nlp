@@ -2,10 +2,18 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import TruncatedSVD
 from sklearn.preprocessing import Normalizer
 from sklearn.pipeline import make_pipeline
+import sparsenlp.modelresults as modelres
+import utils.decorators as decorate
 from time import time
+import pandas as pd
+import numpy
+import pickle
 
 
 class SentenceVect():
+    
+    path = './serializations/'
+
     """Sentence Vector Representation
 
         The instance is intended for further processing including vectorization and clustering
@@ -21,13 +29,63 @@ class SentenceVect():
             returns text vector representation
 
     """
-    
+
+    @decorate.create_log
     def __init__(self, opts):
         """Initializes a Sentence Vector Representation.
 
         """
 
         self.opts = opts
+        self.X = None
+        self.sentences = None
+
+    @decorate.elapsedtime_log
+    def create_sentence_vector(self):
+        """Creates vector representation of sentences
+        
+        Returns
+        -------
+        sparse matrix
+            text vector representation
+        """
+
+        results = modelres.ModelResults('./logs')
+        result_id = self.check_same_sentence_vector(results.get_results())
+        #print(result_id)
+        if result_id is not False and result_id != self.opts['id']:
+            print ('Using existing vector representation: id {}'.format(result_id))
+            with open('{}X_{}.npz'.format(self.path, result_id), 'rb') as handle:
+                self.X = pickle.load(handle)
+        else:
+            sentences = self._read_serialized_sentences_text()
+            self.X = self.sentence_representation(sentences.cleaned_text)
+            self._serialize_sentence_vector()
+
+        return self.X
+
+    def _read_serialized_sentences_text(self):
+        """Returns pandas dataframe text sentences"""
+        
+        try:
+            self.sentences = pd.read_pickle('{}{}.bz2'.format(
+                                            '{}sentences/'.format(self.path), 
+                                            self.opts['paragraph_length']), 
+                                            compression="bz2")
+        except OSError as e:
+            raise OSError('Sentences dataframe does not exists')
+            
+        return self.sentences
+
+    def _serialize_sentence_vector(self):
+        """Serializes vector representation of sentences"""
+            
+        if isinstance(self.X, numpy.ndarray):
+            with open('./serializations/X_{}.npz'.format(self.opts['id']), 
+                      'wb') as handle:
+                pickle.dump(self.X, handle, protocol=4)
+        else:
+            raise ValueError('Sentence vector type not expected')
 
     def sentence_representation(self, data):
         """Do the sentence vector representation.

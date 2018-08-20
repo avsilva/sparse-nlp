@@ -34,7 +34,7 @@ class SentenceCluster():
 
     path = './serializations/'
     
-    @decorate.create_log
+    
     def __init__(self, opts):
         """
         Parameters
@@ -74,29 +74,11 @@ class SentenceCluster():
         self.__train_data.to_pickle('{}{}.bz2'.format(path, 
                                     self.opts['paragraph_length']), 
                                     compression="bz2")
-        
-    def _read_serialized_sentences_text(self):
-        """Returns pandas dataframe text sentences"""
-        
-        try:
-            self.__train_data = pd.read_pickle('{}{}.bz2'.format(
-                                            '{}sentences/'.format(self.path), 
-                                            self.opts['paragraph_length']), 
-                                            compression="bz2")
-        except OSError as e:
-            self.__train_data = self.serialize_sentences()
-            
-        return self.__train_data
     
+    """
     @decorate.elapsedtime_log
     def create_sentence_vector(self):
-        """Creates vector representation of sentences
         
-        Returns
-        -------
-        sparse matrix
-            text vector representation
-        """
 
         filepath = './serializations/X_{}.npz'.format(self.opts['id'])
         if (os.path.isfile(filepath) is True):
@@ -104,10 +86,9 @@ class SentenceCluster():
         else:
             
             vectors = vect.SentenceVect(self.opts)
-            results = modelres.ModelResults('./results2.json')
+            results = modelres.ModelResults('./logs')
             #print(results.get_results()) 
             result_id = vectors.check_same_sentence_vector(results.get_results())
-
             if result_id is not False:
                 print ('Using existing vector representation: id {}'.format(result_id))
                 with open('{}X_{}.npz'.format(self.path, result_id), 'rb') as handle:
@@ -117,16 +98,7 @@ class SentenceCluster():
                 self.__X = vectors.sentence_representation(data.cleaned_text)
                 self._serialize_sentence_vector()
         return self.__X
-        
-    def _serialize_sentence_vector(self):
-        """Serializes vector representation of sentences"""
-            
-        if isinstance(self.__X, numpy.ndarray):
-            with open('./serializations/X_{}.npz'.format(self.opts['id']), 
-                      'wb') as handle:
-                pickle.dump(self.__X, handle, protocol=4)
-        else:
-            raise ValueError('Sentence vector type not expected')
+    """
 
     def _read_serialized_sentences_vector(self):
         """Returns sparse matrix of sentence vectors"""
@@ -141,6 +113,7 @@ class SentenceCluster():
         """Clusters sentence vectors using the instance algorithm"""
 
         #self._read_serialized_sentences_vector()
+        X = self.create_sentence_vector()
 
         # dict self.algos contains mapping of algorithm to clustering method
         codebook = self.algos[self.opts['algorithm']]()
@@ -149,7 +122,7 @@ class SentenceCluster():
                   'wb') as handle:
             pickle.dump(codebook, handle)
        
-        return True
+        return codebook
 
     def _kmeans(self):
         """Clusters sentence vectors using kmeans algorithm

@@ -83,7 +83,7 @@ class FingerPrint():
                       'MINISOMRANDOM': self._minisom}
     
     @decorate.elapsedtime_log
-    def create_fingerprints(self, snippets_by_word, words):
+    def create_fingerprints(self, snippets_by_word, words, X, codebook):
         """Creates fingerprint for each word.
         
         Attributes
@@ -97,9 +97,11 @@ class FingerPrint():
         if isinstance(words, str):
             words = words.split(',')
 
-        self.algos[self.opts['algorithm']](snippets_by_word, words)
+        self.algos[self.opts['algorithm']](snippets_by_word, words, X, codebook)
 
-    def _kmeans(self, snippets_by_word, words):
+        return True
+
+    def _kmeans(self, snippets_by_word, words, X, codebook):
         """Creates fingerprints using kmeans codebook.
         
         Attributes
@@ -110,13 +112,14 @@ class FingerPrint():
             words for which fingerprint will be created
         """
         
+        """
         with open('./serializations/codebook_{}.npy'.format(self.opts['id']), 'rb') as handle:
             codebook = pickle.load(handle)
-        # print (codebook)
+        
 
         with open('./serializations/X_{}.npz'.format(self.opts['id']), 'rb') as handle:
             X = pickle.load(handle)
-        # print (X.shape)
+        """
 
         word_fingerprint = {} 
         for word in words:
@@ -135,7 +138,7 @@ class FingerPrint():
         
         self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']))
 
-    def _minisom(self, snippets_by_word, words):
+    def _minisom(self, snippets_by_word, words, X, codebook):
         """Creates fingerprints using minisom codebook.
         
         Attributes
@@ -149,13 +152,15 @@ class FingerPrint():
         H = int(self.opts['size'])
         W = int(self.opts['size'])
         N = int(self.opts['n_components'])
-        with open('./serializations/codebook_{}.npy'.format(self.opts['id']), 'rb') as handle:
-            codebook = pickle.load(handle)
+
+        #with open('./serializations/codebook_{}.npy'.format(self.opts['id']), 'rb') as handle:
+        #    codebook = pickle.load(handle)
+
         SOM = MiniSom(H, W, N, sigma=1.0, random_seed=1)
         SOM._weights = codebook
 
-        with open('./serializations/X_{}.npz'.format(self.opts['id']), 'rb') as handle:
-            X = pickle.load(handle)
+        #with open('./serializations/X_{}.npz'.format(self.opts['id']), 'rb') as handle:
+        #    X = pickle.load(handle)
 
         num_processes =  mp.cpu_count() -1
 
