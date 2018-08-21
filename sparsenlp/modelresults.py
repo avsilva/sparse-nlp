@@ -12,16 +12,17 @@ class ModelResults():
         #self.path = filepath
         self.folder = folder
 
-    def get_results(self):
+    def get_results(self, exception=None):
         data = []
         for subdir, dirs, files in os.walk(self.folder):
             for file in files:
-                with open('{}/{}'.format(subdir, file), 'r', encoding='utf-8') as handle:
-                    datafile = handle.readlines()
-                    for x in datafile:
-                        s = ast.literal_eval(x)
-                        data.append(s)
-                    #data += [json.loads(x) for x in datafile]
+                if ( file != 'log_{}'.format(exception) ):
+                    with open('{}/{}'.format(subdir, file), 'r', encoding='utf-8') as handle:
+                        datafile = handle.readlines()
+                        for x in datafile:
+                            s = ast.literal_eval(x)
+                            data.append(s)
+                        #data += [json.loads(x) for x in datafile]
                     
         return data
 

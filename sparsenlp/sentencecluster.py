@@ -45,7 +45,7 @@ class SentenceCluster():
 
         self.opts = opts
         self.__train_data = None
-        self.__X = None
+        self.X = None
         self.algos = {'KMEANS': self._kmeans, 'MINISOMBATCH': self._minisombatch,
                       'MINISOMRANDOM': self._minisomrandom}
 
@@ -109,12 +109,12 @@ class SentenceCluster():
         return self.__X
 
     @decorate.elapsedtime_log
-    def cluster(self):
+    def cluster(self, X):
         """Clusters sentence vectors using the instance algorithm"""
 
         #self._read_serialized_sentences_vector()
-        X = self.create_sentence_vector()
-
+        #X = self.create_sentence_vector()
+        self.X = X
         # dict self.algos contains mapping of algorithm to clustering method
         codebook = self.algos[self.opts['algorithm']]()
 
@@ -151,11 +151,11 @@ class SentenceCluster():
 
         H = int(self.opts['size'])
         W = int(self.opts['size'])
-        N = self.__X.shape[1]
+        N = self.X.shape[1]
         som = MiniSom(H, W, N, sigma=1.0, random_seed=1)
         if self.opts['initialization']:
-            som.random_weights_init(self.__X)
-        som.train_batch(self.__X, self.opts['niterations'])
+            som.random_weights_init(self.X)
+        som.train_batch(self.X, self.opts['niterations'])
         return som.get_weights()
 
     def _minisomrandom(self):
@@ -169,11 +169,11 @@ class SentenceCluster():
 
         H = int(self.opts['size'])
         W = int(self.opts['size'])
-        N = self.__X.shape[1]
+        N = self.X.shape[1]
         som = MiniSom(H, W, N, sigma=1.0, random_seed=1)
         if self.opts['initialization']:
-            som.random_weights_init(self.__X)
-        som.train_random(self.__X, self.opts['niterations'])
+            som.random_weights_init(self.X)
+        som.train_random(self.X, self.opts['niterations'])
         return som.get_weights()
 
     def create_kmeans_minibatch_cluster(self, size):
@@ -181,12 +181,12 @@ class SentenceCluster():
         km = MiniBatchKMeans(n_clusters=size, init='k-means++', n_init=1,
                              init_size=1000, batch_size=1000, 
                              verbose=self.opts['verbose'])
-        km.fit(self.__X)
+        km.fit(self.X)
         return km.labels_
 
     def create_kmeans_cluster(self, size):
         
         km = KMeans(n_clusters=size, init='k-means++', max_iter=100, n_init=1,
                     verbose=self.opts['verbose'])
-        km.fit(self.__X)
+        km.fit(self.X)
         return km.labels_

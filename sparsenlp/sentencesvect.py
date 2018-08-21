@@ -8,6 +8,7 @@ from time import time
 import pandas as pd
 import numpy
 import pickle
+import sys
 
 
 class SentenceVect():
@@ -50,12 +51,14 @@ class SentenceVect():
             text vector representation
         """
 
-        results = modelres.ModelResults('./logs')
-        result_id = self.check_same_sentence_vector(results.get_results())
-        #print(result_id)
-        if result_id is not False and result_id != self.opts['id']:
-            print ('Using existing vector representation: id {}'.format(result_id))
-            with open('{}X_{}.npz'.format(self.path, result_id), 'rb') as handle:
+        logs = modelres.ModelResults('./logs')
+        results = logs.get_results(exception=self.opts['id'])
+        same_vectors = self.check_same_sentence_vector(results)
+        
+        if len(same_vectors) > 0:
+            log_id = min(same_vectors)
+            print ('Using existing vector representation: id {}'.format(log_id))
+            with open('{}X_{}.npz'.format(self.path, log_id), 'rb') as handle:
                 self.X = pickle.load(handle)
         else:
             sentences = self._read_serialized_sentences_text()
@@ -144,6 +147,7 @@ class SentenceVect():
         
         keys = ['paragraph_length', 'n_features', 'n_components', 'use_idf', 'use_hashing']
 
+        same_vectors = []
         for result in results:
             
             equal = True
@@ -153,6 +157,7 @@ class SentenceVect():
                     continue
 
             if equal is True:
-                return result['id']
+                #return result['id']
+                same_vectors.append(result['id'])
             
-        return False
+        return same_vectors

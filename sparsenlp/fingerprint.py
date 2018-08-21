@@ -197,7 +197,7 @@ class FingerPrint():
                 #print (fingerprint)
                 for key, value in fingerprint.items():
                     a = self._sparsify_fingerprint(value)
-                    self._create_fp_image(a, key+'_', 'fp_{}'.format(self.opts['id']))
+                    self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
         
 
        
