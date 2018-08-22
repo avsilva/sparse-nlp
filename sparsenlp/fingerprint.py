@@ -153,7 +153,7 @@ class FingerPrint():
             words for which fingerprint will be created
         """
 
-        words = self._check_existing_word_fp('fp_{}'.format(self.opts['id']), words)
+        #words = self._check_existing_word_fp('fp_{}'.format(self.opts['id']), words)
         
         H = int(self.opts['size'])
         W = int(self.opts['size'])
@@ -184,7 +184,8 @@ class FingerPrint():
                 results = pool.map(create_fp2, a)
                 #print('Results (pool):\n', results)
         """
-          
+        
+        indeces = []
         word_vectors = []
         for word in words:
             a = []
@@ -193,7 +194,8 @@ class FingerPrint():
             for info in word_counts[1:]:
                 idx = info['idx']
                 a.append({'idx': idx, 'counts': info['counts'], 'vector': X[idx]})
-            word_vectors.append({word: a})        
+                indeces.append(idx)
+            word_vectors.append({word: a})
 
         with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
             results = pool.map(create_fp, word_vectors)
@@ -235,7 +237,7 @@ class FingerPrint():
                 if os.path.exists("./images/"+image_dir+"/"+word+".bmp"):
                     ind2remove.append(i)
                 i += 1 
-            print(ind2remove)
+            #print(ind2remove)
             words = [x for i, x in enumerate(words) if i not in ind2remove]
         
         return words
@@ -509,6 +511,7 @@ class FingerPrint():
             with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
                 snippets_by_word = pickle.load(handle)
         else:
+            print('Creating new snippets by word: id {}'.format(self.id))
             sentences = self._read_serialized_sentences_text('{}sentences/'.format(self.path))
             snippets_by_word = self._get_snippets_and_counts(sentences, words)
             with open('./serializations/snippets_by_word_{}.pkl'.format(self.id), 'wb') as f:

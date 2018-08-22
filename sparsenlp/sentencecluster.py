@@ -124,7 +124,7 @@ class SentenceCluster():
                 codebook = pickle.load(handle)
         
         else:
-
+            print('Creating new codebook: id {}'.format(self.opts['id']))
             self.X = X
             # dict self.algos contains mapping of algorithm to clustering method
             codebook = self.algos[self.opts['algorithm']]()
