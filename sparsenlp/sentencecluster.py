@@ -112,17 +112,49 @@ class SentenceCluster():
     def cluster(self, X):
         """Clusters sentence vectors using the instance algorithm"""
 
-        #self._read_serialized_sentences_vector()
-        #X = self.create_sentence_vector()
-        self.X = X
-        # dict self.algos contains mapping of algorithm to clustering method
-        codebook = self.algos[self.opts['algorithm']]()
+        
+        logs = modelres.ModelResults('./logs')
+        results = logs.get_results(exception=self.opts['id'])
+        same_codebook = self.check_same_codebook(results)
 
-        with open('./serializations/codebook_{}.npy'.format(self.opts['id']),
-                  'wb') as handle:
-            pickle.dump(codebook, handle)
+        if len(same_codebook) > 0:
+            log_id = min(same_codebook)
+            print('Using existing codebook: id {}'.format(log_id))
+            with open('./serializations/codebook_{}.npy'.format(log_id), 'rb') as handle:
+                codebook = pickle.load(handle)
+        
+        else:
+
+            self.X = X
+            # dict self.algos contains mapping of algorithm to clustering method
+            codebook = self.algos[self.opts['algorithm']]()
+
+            with open('./serializations/codebook_{}.npy'.format(self.opts['id']),
+                    'wb') as handle:
+                pickle.dump(codebook, handle)
        
         return codebook
+
+    def check_same_codebook(self, results):
+        
+        keys = ['paragraph_length', 'n_features', 'n_components', 'use_idf', 
+                'use_hashing', 'algorithm', 'initialization', 'size', 
+                'niterations', 'minibatch']
+
+        same_codebooks = []
+        for result in results:
+            
+            equal = True
+            for key in keys:
+                if result[key] != self.opts[key]:
+                    equal = False
+                    continue
+
+            if equal is True:
+                #return result['id']
+                same_codebooks.append(result['id'])
+            
+        return same_codebooks
 
     def _kmeans(self):
         """Clusters sentence vectors using kmeans algorithm

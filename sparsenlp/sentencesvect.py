@@ -53,7 +53,7 @@ class SentenceVect():
 
         logs = modelres.ModelResults('./logs')
         results = logs.get_results(exception=self.opts['id'])
-        same_vectors = self.check_same_sentence_vector(results)
+        same_vectors = self._check_same_sentence_vector(results)
         
         if len(same_vectors) > 0:
             log_id = min(same_vectors)
@@ -143,7 +143,7 @@ class SentenceVect():
 
         return X
 
-    def check_same_sentence_vector(self, results):
+    def _check_same_sentence_vector(self, results):
         
         keys = ['paragraph_length', 'n_features', 'n_components', 'use_idf', 'use_hashing']
 

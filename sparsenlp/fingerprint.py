@@ -8,10 +8,12 @@ from functools import reduce
 import concurrent.futures
 import pandas as pd
 from sklearn.datasets.base import Bunch
+#from skimage.measure import compare_ssim  as ssim
 from scipy.spatial import distance
 import scipy
 from minisom import MiniSom
 import utils.decorators as decorate
+import sparsenlp.modelresults as modelres
 import itertools
 from functools import partial
 #from multiprocessing import Pool, RawArray
@@ -83,7 +85,7 @@ class FingerPrint():
                       'MINISOMRANDOM': self._minisom}
     
     @decorate.elapsedtime_log
-    def create_fingerprints(self, snippets_by_word, words, X, codebook):
+    def create_fingerprints(self, snippets_by_word, X, codebook, words=None):
         """Creates fingerprint for each word.
         
         Attributes
@@ -96,6 +98,8 @@ class FingerPrint():
         
         if isinstance(words, str):
             words = words.split(',')
+        elif words is None:
+            words = list(snippets_by_word.keys())
 
         self.algos[self.opts['algorithm']](snippets_by_word, words, X, codebook)
 
@@ -148,6 +152,8 @@ class FingerPrint():
         words : list
             words for which fingerprint will be created
         """
+
+        words = self._check_existing_word_fp('fp_{}'.format(self.opts['id']), words)
         
         H = int(self.opts['size'])
         W = int(self.opts['size'])
@@ -162,7 +168,7 @@ class FingerPrint():
         #with open('./serializations/X_{}.npz'.format(self.opts['id']), 'rb') as handle:
         #    X = pickle.load(handle)
 
-        num_processes =  mp.cpu_count() -1
+        num_processes = mp.cpu_count() - 1
 
         """
         word_vectors = []
@@ -218,6 +224,22 @@ class FingerPrint():
             a = self._sparsify_fingerprint(a)
             self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
         """
+    def _check_existing_word_fp(self, image_dir, words):
+        
+        if not os.path.exists("./images/"+image_dir):
+            return words
+        else:
+            i = 0
+            ind2remove = []
+            for word in words:
+                if os.path.exists("./images/"+image_dir+"/"+word+".bmp"):
+                    ind2remove.append(i)
+                i += 1 
+            print(ind2remove)
+            words = [x for i, x in enumerate(words) if i not in ind2remove]
+        
+        return words
+                    
     def _sparsify_fingerprint(self, a):
         
         #hist = np.histogram(a, bins=10, range=None, normed=False, weights=None, density=None)
@@ -302,6 +324,7 @@ class FingerPrint():
         im = im.point(lut)
         im.save("./images/"+image_dir+"/"+word+".bmp")
         os.remove("./images/"+image_dir+"/"+word+".png")
+        
 
     def _equalize(self, h):
         
@@ -475,22 +498,43 @@ class FingerPrint():
         words : list
             benchmark dataset words
         """
-        
-        sentences = self._read_serialized_sentences_text(
-            '{}sentences/'.format(self.path))
 
-        filepath = './serializations/snippets_by_word_{}.pkl'.format(self.id)
-        if (os.path.isfile(filepath) is False):
+        logs = modelres.ModelResults('./logs')
+        results = logs.get_results(exception=self.opts['id'])
+        same_snippets_by_word = self._check_same_snippets_by_word(results)
+        
+        if len(same_snippets_by_word) > 0:
+            log_id = min(same_snippets_by_word)
+            print('Using existing snippets by word: id {}'.format(log_id))
+            with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
+                snippets_by_word = pickle.load(handle)
+        else:
+            sentences = self._read_serialized_sentences_text('{}sentences/'.format(self.path))
             snippets_by_word = self._get_snippets_and_counts(sentences, words)
             with open('./serializations/snippets_by_word_{}.pkl'.format(self.id), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
-        else:
-            with open('./serializations/snippets_by_word_{}.pkl'.format(
-                        self.id), 'rb') as handle:
-                snippets_by_word = pickle.load(handle)
-
+            
         return snippets_by_word
 
+    def _check_same_snippets_by_word(self, results):
+        
+        keys = ['paragraph_length']
+
+        same_snippets_by_word = []
+        for result in results:
+            
+            equal = True
+            for key in keys:
+                if result[key] != self.opts[key]:
+                    equal = False
+                    continue
+
+            if equal is True:
+                #return result['id']
+                same_snippets_by_word.append(result['id'])
+            
+        return same_snippets_by_word
+    
     def _read_serialized_sentences_text(self, path):
         """Loads Serialized dataframe text sentences"""
         
