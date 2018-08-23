@@ -80,9 +80,7 @@ class SentenceVect():
             
             if 'dataextension' in self.opts:
                 extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
-                #print (self.sentences.shape)
                 self.sentences = self.sentences.append(extension_sentences)
-                #print (self.sentences.shape)
 
         except OSError as e:
             raise OSError('Sentences dataframe does not exists')
@@ -104,7 +102,9 @@ class SentenceVect():
                                                 ext, file), compression="bz2")
                 new_sentences_df = new_sentences_df.append(df_sentences)
         new_sentences_df.query('text_length_tokenized > {}'.format(self.opts['paragraph_length']), inplace=True)
-        return new_sentences_df[['id', 'cleaned_text']]
+        new_sentences_df = new_sentences_df[['id', 'tokenized']]
+        new_sentences_df = new_sentences_df.rename(index=str, columns={"tokenized": "cleaned_text"})
+        return new_sentences_df
     
     def _serialize_sentence_vector(self):
         """Serializes vector representation of sentences"""
