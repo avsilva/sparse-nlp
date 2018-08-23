@@ -64,9 +64,6 @@ class SentenceVect():
         else:
             print ('Creating new vector representation: id {}'.format(self.opts['id']))
             sentences = self._read_serialized_sentences_text()
-            #print (sentences.shape)
-            #print (sentences.columns)
-            sys.exit(0)
             self.X = self.sentence_representation(sentences.cleaned_text)
             self._serialize_sentence_vector()
 
@@ -83,9 +80,9 @@ class SentenceVect():
             
             if 'dataextension' in self.opts:
                 extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
-                print (self.sentences.shape)
+                #print (self.sentences.shape)
                 self.sentences = self.sentences.append(extension_sentences)
-                print (self.sentences.shape)
+                #print (self.sentences.shape)
 
         except OSError as e:
             raise OSError('Sentences dataframe does not exists')
