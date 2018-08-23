@@ -69,6 +69,53 @@ class SentenceVect():
 
         return self.X
 
+    def create_snippets_by_word(self, words):
+        """Returns dict with counts and sentence index for each benchmark word.
+        
+        Parameters
+        ---------
+        words : list
+            benchmark dataset words
+        """
+
+        logs = modelres.ModelResults('./logs')
+        results = logs.get_results(exception=self.opts['id'])
+        same_snippets_by_word = self._check_same_snippets_by_word(results)
+        
+        if len(same_snippets_by_word) > 0:
+            log_id = min(same_snippets_by_word)
+            print('Using existing snippets by word: id {}'.format(log_id))
+            with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
+                snippets_by_word = pickle.load(handle)
+        else:
+            print('Creating new snippets by word: id {}'.format(self.opts['id']))
+            sentences = self._read_serialized_sentences_text()
+            snippets_by_word = self._get_snippets_and_counts(sentences, words)
+            with open('./serializations/snippets_by_word_{}.pkl'.format(self.opts['id']), 'wb') as f:
+                pickle.dump(snippets_by_word, f)
+            
+        return snippets_by_word
+
+    def _get_snippets_and_counts(self, _dataframe, _word):
+        
+        snippets_and_counts = {}
+        for w in _word:
+            info = {'idx': 0, 'counts': 0}
+            snippets_and_counts[w] = [info]
+
+        for index, row in _dataframe.iterrows():
+            tokens = row['cleaned_text'].split()
+            for w in _word:
+                
+                if tokens.count(w) != 0:
+                    info = {'idx': index, 'counts': tokens.count(w)}
+                    snippets_and_counts[w].append(info)
+
+            if int(index) % 100000 == 0:
+                print('index {}'.format(index))
+        
+        return snippets_and_counts
+
     def _read_serialized_sentences_text(self):
         """Returns pandas dataframe text sentences"""
         
@@ -187,3 +234,22 @@ class SentenceVect():
                 same_vectors.append(result['id'])
             
         return same_vectors
+
+    def _check_same_snippets_by_word(self, results):
+        
+        keys = ['paragraph_length', 'dataextension']
+
+        same_snippets_by_word = []
+        for result in results:
+            
+            equal = True
+            for key in keys:
+                if (key not in result) or (result[key] != self.opts[key]):
+    
+                    equal = False
+                    continue
+
+            if equal is True:
+                same_snippets_by_word.append(result['id'])
+            
+        return same_snippets_by_word

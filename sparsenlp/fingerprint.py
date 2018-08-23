@@ -494,14 +494,8 @@ class FingerPrint():
             data = self._fetch_ENRG65(mode)
         return data
 
+    """
     def get_snippets_by_word(self, words):
-        """Returns dict with counts and sentence index for each benchmark word.
-        
-        Parameters
-        ---------
-        words : list
-            benchmark dataset words
-        """
 
         logs = modelres.ModelResults('./logs')
         results = logs.get_results(exception=self.opts['id'])
@@ -520,17 +514,18 @@ class FingerPrint():
                 pickle.dump(snippets_by_word, f)
             
         return snippets_by_word
-
+    
     def _check_same_snippets_by_word(self, results):
         
-        keys = ['paragraph_length']
+        keys = ['paragraph_length', 'dataextension']
 
         same_snippets_by_word = []
         for result in results:
             
             equal = True
             for key in keys:
-                if result[key] != self.opts[key]:
+                if (key not in result) or (result[key] != self.opts[key]):
+    
                     equal = False
                     continue
 
@@ -540,8 +535,8 @@ class FingerPrint():
             
         return same_snippets_by_word
     
+
     def _read_serialized_sentences_text(self, path):
-        """Loads Serialized dataframe text sentences"""
         
         return pd.read_pickle('{}{}.bz2'.format(path, self.sentece_length),
                               compression="bz2")
@@ -565,7 +560,7 @@ class FingerPrint():
                 print('index '+str(index))
         
         return snippets_and_counts
-
+    """
 
 
                 
