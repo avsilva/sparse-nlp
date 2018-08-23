@@ -29,7 +29,7 @@ class DataCleaner():
         for subdir, dirs, files in os.walk(path):
             for file in files:
                 with open('{}/{}'.format(subdir, file), 'r', encoding='utf-8') as handle:
-                    datafile=handle.readlines()
+                    datafile = handle.readlines()
                     data += [json.loads(x) for x in datafile]
                     
         return data

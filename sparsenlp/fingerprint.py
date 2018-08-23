@@ -185,7 +185,7 @@ class FingerPrint():
                 #print('Results (pool):\n', results)
         """
         
-        indeces = []
+        indexes = []
         word_vectors = []
         for word in words:
             a = []
@@ -194,8 +194,10 @@ class FingerPrint():
             for info in word_counts[1:]:
                 idx = info['idx']
                 a.append({'idx': idx, 'counts': info['counts'], 'vector': X[idx]})
-                indeces.append(idx)
+                indexes.append(idx)
             word_vectors.append({word: a})
+
+        # remove duplicates from indexes for reducing computing time
 
         with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
             results = pool.map(create_fp, word_vectors)

@@ -9,6 +9,7 @@ import pandas as pd
 import numpy
 import pickle
 import sys
+import os
 
 
 class SentenceVect():
@@ -61,7 +62,11 @@ class SentenceVect():
             with open('{}X_{}.npz'.format(self.path, log_id), 'rb') as handle:
                 self.X = pickle.load(handle)
         else:
+            print ('Creating new vector representation: id {}'.format(self.opts['id']))
             sentences = self._read_serialized_sentences_text()
+            #print (sentences.shape)
+            #print (sentences.columns)
+            sys.exit(0)
             self.X = self.sentence_representation(sentences.cleaned_text)
             self._serialize_sentence_vector()
 
@@ -75,11 +80,35 @@ class SentenceVect():
                                             '{}sentences/'.format(self.path), 
                                             self.opts['paragraph_length']), 
                                             compression="bz2")
+            
+            if 'dataextension' in self.opts:
+                extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
+                print (self.sentences.shape)
+                self.sentences = self.sentences.append(extension_sentences)
+                print (self.sentences.shape)
+
         except OSError as e:
             raise OSError('Sentences dataframe does not exists')
             
         return self.sentences
 
+    def _read_extension_sentences(self, dataextension):
+        
+        # create empty dataframe 
+        new_sentences_df = pd.DataFrame(columns=self.sentences.columns)
+
+        extensions = dataextension.split(',')
+        for ext in extensions:
+            folder = './serializations/sentences/articles{}/'.format(ext)
+            file_list = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
+            
+            for file in file_list:
+                df_sentences = pd.read_pickle('./serializations/sentences/articles{}/{}'.format(
+                                                ext, file), compression="bz2")
+                new_sentences_df = new_sentences_df.append(df_sentences)
+        new_sentences_df.query('text_length_tokenized > {}'.format(self.opts['paragraph_length']), inplace=True)
+        return new_sentences_df[['id', 'cleaned_text']]
+    
     def _serialize_sentence_vector(self):
         """Serializes vector representation of sentences"""
             
@@ -145,14 +174,14 @@ class SentenceVect():
 
     def _check_same_sentence_vector(self, results):
         
-        keys = ['paragraph_length', 'n_features', 'n_components', 'use_idf', 'use_hashing']
+        keys = ['paragraph_length', 'dataextension', 'n_features', 'n_components', 'use_idf', 'use_hashing']
 
         same_vectors = []
         for result in results:
             
             equal = True
             for key in keys:
-                if result[key] != self.opts[key]:
+                if (key not in result) or (result[key] != self.opts[key]):
                     equal = False
                     continue
 
