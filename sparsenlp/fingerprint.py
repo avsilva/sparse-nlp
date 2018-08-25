@@ -187,12 +187,16 @@ class FingerPrint():
         
         indexes = []
         word_vectors = []
+        print (words)
+        #sys.exit(0)
+        
         for word in words:
             a = []
             word_counts = snippets_by_word[word]
             
             for info in word_counts[1:]:
                 idx = info['idx']
+                print ('idx {}'.format(idx))
                 a.append({'idx': idx, 'counts': info['counts'], 'vector': X[idx]})
                 indexes.append(idx)
             word_vectors.append({word: a})

@@ -115,6 +115,7 @@ class SentenceCluster():
         
         logs = modelres.ModelResults('./logs')
         results = logs.get_results(exception=self.opts['id'])
+        #results = logs.get_results()
         same_codebook = self.check_same_codebook(results)
 
         if len(same_codebook) > 0:
@@ -137,7 +138,7 @@ class SentenceCluster():
 
     def check_same_codebook(self, results):
         
-        keys = ['paragraph_length', 'n_features', 'n_components', 'use_idf', 
+        keys = ['paragraph_length', 'dataextension', 'n_features', 'n_components', 'use_idf', 
                 'use_hashing', 'algorithm', 'initialization', 'size', 
                 'niterations', 'minibatch']
 
@@ -146,7 +147,8 @@ class SentenceCluster():
             
             equal = True
             for key in keys:
-                if result[key] != self.opts[key]:
+                #if result[key] != self.opts[key]:
+                if (key not in result) or (result[key] != self.opts[key]):
                     equal = False
                     continue
 

@@ -40,7 +40,38 @@ class SentenceVect():
 
         self.opts = opts
         self.X = None
+        self.snippets_by_word = None
         self.sentences = None
+        
+    
+    @decorate.elapsedtime_log
+    def create_vectors(self, words):
+        logs = modelres.ModelResults('./logs')
+        results = logs.get_results(exception=self.opts['id'])
+        #results = logs.get_results()
+        same_vectors = self._check_same_sentence_vector(results)
+        
+        if len(same_vectors) > 0:
+            log_id = min(same_vectors)
+            print ('Using existing vector representation: id {}'.format(log_id))
+            with open('{}X_{}.npz'.format(self.path, log_id), 'rb') as handle:
+                self.X = pickle.load(handle)
+            print('Using existing snippets by word: id {}'.format(log_id))
+            with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
+                self.snippets_by_word = pickle.load(handle)
+        else:
+            sentences = self._read_serialized_sentences_text()
+            
+            print ('Creating new vector representation: id {}'.format(self.opts['id']))
+            self.X = self.sentence_representation(sentences.cleaned_text)
+            self._serialize_sentence_vector()
+            
+            print('Creating new snippets by word: id {}'.format(self.opts['id']))
+            self.snippets_by_word = self._get_snippets_and_counts(sentences, words)
+            with open('./serializations/snippets_by_word_{}.pkl'.format(self.opts['id']), 'wb') as f:
+                pickle.dump(self.snippets_by_word, f)
+
+        return self.snippets_by_word, self.X
 
     @decorate.elapsedtime_log
     def create_sentence_vector(self):
@@ -127,7 +158,7 @@ class SentenceVect():
             
             if 'dataextension' in self.opts:
                 extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
-                self.sentences = self.sentences.append(extension_sentences)
+                self.sentences = self.sentences.append(extension_sentences, ignore_index=True)
 
         except OSError as e:
             raise OSError('Sentences dataframe does not exists')
