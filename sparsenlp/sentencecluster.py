@@ -117,7 +117,7 @@ class SentenceCluster():
         results = logs.get_results(exception=self.opts['id'])
         #results = logs.get_results()
         same_codebook = self.check_same_codebook(results)
-
+        
         if len(same_codebook) > 0:
             log_id = min(same_codebook)
             print('Using existing codebook: id {}'.format(log_id))

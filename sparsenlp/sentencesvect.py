@@ -6,6 +6,7 @@ import sparsenlp.modelresults as modelres
 import utils.decorators as decorate
 from time import time
 import pandas as pd
+import numpy as np
 import numpy
 import pickle
 import sys
@@ -207,49 +208,82 @@ class SentenceVect():
         numpy ndarray
             text vector representation
         """
-        
-        if self.opts['use_hashing']:
-            if self.opts['use_idf']:
-                # Perform an IDF normalization on the output of HashingVectorizer
-                hasher = HashingVectorizer(n_features=self.opts['n_features'],
-                                        stop_words='english', alternate_sign=False,
-                                        norm=None, binary=False)
-                vectorizer = make_pipeline(hasher, TfidfTransformer())
-            else:
-                vectorizer = HashingVectorizer(n_features=self.opts['n_features'],
-                                            stop_words='english',
-                                            alternate_sign=False, norm='l2',
-                                            binary=False)
-        else:
-            vectorizer = TfidfVectorizer(max_df=0.5, max_features=self.opts['n_features'],
-                                        min_df=2, stop_words='english',
-                                        use_idf=self.opts['use_idf'])
+
+        # TODO: refactor method: should be splited at least in two other methods
+        if self.opts['use_glove']:
             
-        X = vectorizer.fit_transform(data)
+            #data = data[:205900]
+            #data = data[:170000]
+            #print (data)
+            #data = data.tolist()
+            sentences = []
+            for tokens in data:
+                #print (tokens.split(' '))
+                sentences.append(tokens.split(' '))
 
-        if self.opts['n_components']:
-            print("Performing dimensionality reduction using LSA")
-            t0 = time()
-            # Vectorizer results are normalized, which makes KMeans behave as
-            # spherical k-means for better results. Since LSA/SVD results are
-            # not normalized, we have to redo the normalization.
-            svd = TruncatedSVD(self.opts['n_components'])
-            normalizer = Normalizer(copy=False)
-            lsa = make_pipeline(svd, normalizer)
+            print ('Vectorizing sentences using GLOVE')
+            glove = {w: x for w, x in self.gimme_glove()}
+            X = [self.tokens_to_glove_vec(tokens, glove).mean(axis=0) for tokens in sentences]
+            X = np.array(X)
+            print (X.shape)
 
-            X = lsa.fit_transform(X)
+        else:
+            print ('Vectorizing sentences using tf-idf or hashing')
+            if self.opts['use_hashing']:
+                if self.opts['use_idf']:
+                    # Perform an IDF normalization on the output of HashingVectorizer
+                    hasher = HashingVectorizer(n_features=self.opts['n_features'],
+                                            stop_words='english', alternate_sign=False,
+                                            norm=None, binary=False)
+                    vectorizer = make_pipeline(hasher, TfidfTransformer())
+                else:
+                    vectorizer = HashingVectorizer(n_features=self.opts['n_features'],
+                                                stop_words='english',
+                                                alternate_sign=False, norm='l2',
+                                                binary=False)
+            else:
+                vectorizer = TfidfVectorizer(max_df=0.5, max_features=self.opts['n_features'],
+                                            min_df=2, stop_words='english',
+                                            use_idf=self.opts['use_idf'])
+                
+            X = vectorizer.fit_transform(data)
 
-            print("done in %fs" % (time() - t0))
+            if self.opts['n_components']:
+                print("Performing dimensionality reduction using LSA")
+                t0 = time()
+                # Vectorizer results are normalized, which makes KMeans behave as
+                # spherical k-means for better results. Since LSA/SVD results are
+                # not normalized, we have to redo the normalization.
+                svd = TruncatedSVD(self.opts['n_components'])
+                normalizer = Normalizer(copy=False)
+                lsa = make_pipeline(svd, normalizer)
 
-            explained_variance = svd.explained_variance_ratio_.sum()
-            print("Explained variance of the SVD step: {}%".format(
-                int(explained_variance * 100)))
+                X = lsa.fit_transform(X)
+
+                print("done in %fs" % (time() - t0))
+
+                explained_variance = svd.explained_variance_ratio_.sum()
+                print("Explained variance of the SVD step: {}%".format(
+                    int(explained_variance * 100)))
 
         return X
 
+    def tokens_to_glove_vec(self, tokens, glove):
+        words = [w for w in np.unique(tokens) if w in glove]
+        if len(words) == 0:
+            print ('EMPTY')
+            words = ['all']
+        return np.array([glove[w] for w in words])
+    
+    def gimme_glove(self):
+        with open("C:/Users/andre.silva/web_data/embeddings/glove.6B/{}.txt".format(self.opts['use_glove']), encoding='utf-8') as glove_raw:
+            for line in glove_raw.readlines():
+                splitted = line.split(' ')
+                yield splitted[0], np.array(splitted[1:], dtype=np.float)
+
     def _check_same_sentence_vector(self, results):
         
-        keys = ['paragraph_length', 'dataextension', 'n_features', 'n_components', 'use_idf', 'use_hashing']
+        keys = ['paragraph_length', 'dataextension', 'n_features', 'n_components', 'use_idf', 'use_hashing', 'use_glove']
 
         same_vectors = []
         for result in results:

@@ -8,7 +8,12 @@ from functools import reduce
 import concurrent.futures
 import pandas as pd
 from sklearn.datasets.base import Bunch
-#from skimage.measure import compare_ssim  as ssim
+try:
+    from skimage.measure import compare_ssim
+except:
+    print('ERROR: ' +str(sys.exc_info()[0]))
+
+from scipy.stats import wasserstein_distance
 from scipy.spatial import distance
 import scipy
 from minisom import MiniSom
@@ -157,7 +162,8 @@ class FingerPrint():
         
         H = int(self.opts['size'])
         W = int(self.opts['size'])
-        N = int(self.opts['n_components'])
+        #N = int(self.opts['n_components'])
+        N = X.shape[1]
 
         #with open('./serializations/codebook_{}.npy'.format(self.opts['id']), 'rb') as handle:
         #    codebook = pickle.load(handle)
@@ -187,8 +193,7 @@ class FingerPrint():
         
         indexes = []
         word_vectors = []
-        print (words)
-        #sys.exit(0)
+        #print (words)
         
         for word in words:
             a = []
@@ -196,7 +201,7 @@ class FingerPrint():
             
             for info in word_counts[1:]:
                 idx = info['idx']
-                print ('idx {}'.format(idx))
+                #print ('idx {}'.format(idx))
                 a.append({'idx': idx, 'counts': info['counts'], 'vector': X[idx]})
                 indexes.append(idx)
             word_vectors.append({word: a})
@@ -366,7 +371,9 @@ class FingerPrint():
         # Define distance measures mapping
         distance_measures = {
             "cosine": self._cosine, "euclidean": self._euclidean, 
-            "similarbits": self._similarbits, "ssim": self._struc_sim
+            "similarbits": self._similarbits, 
+            "structutal similarity": self._struc_similatity,
+            'earth movers distance': self._wasserstein,
         }
 
         w1 = evaluation_set[0]
@@ -403,7 +410,7 @@ class FingerPrint():
 
         predicted_scores = measure_fnct(A, B)
         result = scipy.stats.spearmanr(predicted_scores, bunch.y).correlation
-        return result
+        return round(result, 3)
 
     def _get_fingerprint_from_image(self, word, _mode):
         
@@ -434,10 +441,15 @@ class FingerPrint():
 
         return np.array([1 / distance.euclidean(v1, v2) for v1, v2 in zip(A, B)])
 
-    def _struc_sim(self, A, B):
+    def _struc_similatity(self, A, B):
         """Computes the structural similarity btw 2 vectors."""
 
-        return np.array([ssim(v1, v2, win_size=33) for v1, v2 in zip(A, B)])
+        return np.array([compare_ssim(v1, v2, win_size=33) for v1, v2 in zip(A, B)])
+
+    def _wasserstein(self, A, B):
+        """Computes the  earth mover's distance btw 2 vectors."""
+
+        return np.array([1 - wasserstein_distance(v1, v2) for v1, v2 in zip(A, B)])
         
     def _similarbits(self, A, B):
         """Computes the similar bits btw 2 vectors."""
