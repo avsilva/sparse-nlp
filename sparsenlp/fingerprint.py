@@ -19,48 +19,15 @@ import scipy
 from minisom import MiniSom
 import utils.decorators as decorate
 import sparsenlp.modelresults as modelres
+from sparsenlp.sentencesvect import SentenceVect
+from sparsenlp.calculations import *
+from sparsenlp.sentencecluster import SentenceCluster
 import itertools
 from functools import partial
-#from multiprocessing import Pool, RawArray
 import multiprocessing as mp
-    
-var_dict = {}
-
-
-def init_worker(H, W, N, codebook):
-    # Using a dictionary is not strictly necessary. You can also
-    # use global variables.
-    var_dict['H'] = H
-    var_dict['W'] = W
-    var_dict['N'] = N
-    var_dict['codebook'] = codebook
-
-def create_fp2(word_vectors):
-
-    SOM = MiniSom(var_dict['H'], var_dict['W'], var_dict['N'], sigma=1.0, random_seed=1)
-    SOM._weights = var_dict['codebook']
-    #a = np.zeros((var_dict['H'], var_dict['W']), dtype=np.int)
-
-    idx = word_vectors['idx']
-    bmu = SOM.winner(word_vectors['vector'])
-    return {word_vectors['counts']: bmu}
-        
-
-def create_fp(word_vectors):
-    
-    SOM = MiniSom(var_dict['H'], var_dict['W'], var_dict['N'], sigma=1.0, random_seed=1)
-    SOM._weights = var_dict['codebook']
-    a = np.zeros((var_dict['H'], var_dict['W']), dtype=np.int)
-
-    for key, value in word_vectors.items():
-        #print (key, type(value), len(value))
-        for val in value:
-            idx = val['idx']
-            bmu = SOM.winner(val['vector'])
-            a[bmu[0], bmu[1]] += val['counts']
-            
-    return {key: a}
-
+import dask.multiprocessing
+from dask import compute, delayed
+import random
 
 class FingerPrint():
     
@@ -84,13 +51,12 @@ class FingerPrint():
         """
         self.opts = opts
         self.id = opts['id']
-        self.name = opts['testdataset']
         self.sentece_length = opts['paragraph_length']
         self.algos = {'KMEANS': self._kmeans, 'MINISOMBATCH': self._minisom,
                       'MINISOMRANDOM': self._minisom}
     
     @decorate.elapsedtime_log
-    def create_fingerprints(self, snippets_by_word, X, codebook, words=None):
+    def create_fingerprints(self, snippets_by_word=None, X=None, codebook=None, words=None, fraction=None):
         """Creates fingerprint for each word.
         
         Attributes
@@ -100,12 +66,26 @@ class FingerPrint():
         words : list
             words for which fingerprint will be created
         """
-        
+
+        if snippets_by_word is None:
+            vectors = SentenceVect(self.opts)
+            snippets_by_word = vectors.get_word_snippets()
+
+        if X is None:
+            vectors = SentenceVect(self.opts)
+            X = vectors.get_vectors()
+
+        if codebook is None:
+            mycluster = SentenceCluster(self.opts)
+            codebook = mycluster.get_cluster()
+
         if isinstance(words, str):
             words = words.split(',')
         elif words is None:
             words = list(snippets_by_word.keys())
 
+        words = self._check_existing_word_fp('fp_{}'.format(self.opts['id']), words, fraction)
+        print ('Creating SDR for {} words'.format(len(words)))
         self.algos[self.opts['algorithm']](snippets_by_word, words, X, codebook)
 
         return True
@@ -158,23 +138,86 @@ class FingerPrint():
             words for which fingerprint will be created
         """
 
-        #words = self._check_existing_word_fp('fp_{}'.format(self.opts['id']), words)
-        
         H = int(self.opts['size'])
         W = int(self.opts['size'])
-        #N = int(self.opts['n_components'])
         N = X.shape[1]
-
-        #with open('./serializations/codebook_{}.npy'.format(self.opts['id']), 'rb') as handle:
-        #    codebook = pickle.load(handle)
 
         SOM = MiniSom(H, W, N, sigma=1.0, random_seed=1)
         SOM._weights = codebook
 
-        #with open('./serializations/X_{}.npz'.format(self.opts['id']), 'rb') as handle:
-        #    X = pickle.load(handle)
+        all_indexes = []
+        unique_indexes = set()
+        word_vectors = []
+        #print (words)
+        #words = ['cock', 'rooster']
+        
+        for word in words:
+            a = []
+            word_counts = snippets_by_word[word]
+            
+            for info in word_counts[1:]:
+                idx = info['idx']
+                #print ('idx {}'.format(idx))
+                a.append({'idx': idx, 'counts': info['counts'], 'vector': X[idx]})
+                unique_indexes.add(idx)
+                all_indexes.append(idx)
+            word_vectors.append({word: a})
+        #print (len(all_indexes))
+        #print (len(unique_indexes))
+        
+        i = 0
+        unique_word_vectors = []
+        for idx in unique_indexes:
+            i += 1
+            unique_word_vectors.append({'idx': idx, 'vector': X[idx]})
 
+        values = [delayed(process2)(codebook, x) for x in unique_word_vectors]
+        results = compute(*values, scheduler='processes')
+
+        # transform list in dict
+        idx_vectors = {} 
+        for result in results:
+            for key in result:
+                idx_vectors[key] = result[key]
+
+        #generate fingerprints
+        for word in words:
+            word_counts = snippets_by_word[word]
+            a = np.zeros((H, W), dtype=np.int)
+            for info in word_counts[1:]:
+                 idx = info['idx']
+                 bmu = idx_vectors[idx]
+                 a[bmu[0], bmu[1]] += info['counts']
+
+            a = self._sparsify_fingerprint(a)
+            self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
+        return True
+
+        # TODO: test performance with threads
+        values = [delayed(process)(codebook, x) for x in word_vectors]
+        results = compute(*values, scheduler='processes')
+        print (results)
+        for fingerprint in results:
+            #print (fingerprint)
+            for key, value in fingerprint.items():
+                a = self._sparsify_fingerprint(value)
+                self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
+        
+        """
         num_processes = mp.cpu_count() - 1
+        #with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
+        #    results = pool.map(find_bmu, unique_word_vectors, 10000)
+        #return True
+
+        with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
+            results = pool.map(create_fp, word_vectors)
+            #print('Results (pool):\n', results)
+            for fingerprint in results:
+                #print (fingerprint)
+                for key, value in fingerprint.items():
+                    a = self._sparsify_fingerprint(value)
+                    self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
+        """
 
         """
         word_vectors = []
@@ -190,35 +233,6 @@ class FingerPrint():
                 results = pool.map(create_fp2, a)
                 #print('Results (pool):\n', results)
         """
-        
-        indexes = []
-        word_vectors = []
-        #print (words)
-        
-        for word in words:
-            a = []
-            word_counts = snippets_by_word[word]
-            
-            for info in word_counts[1:]:
-                idx = info['idx']
-                #print ('idx {}'.format(idx))
-                a.append({'idx': idx, 'counts': info['counts'], 'vector': X[idx]})
-                indexes.append(idx)
-            word_vectors.append({word: a})
-
-        # remove duplicates from indexes for reducing computing time
-
-        with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
-            results = pool.map(create_fp, word_vectors)
-            #results = pool.starmap(create_fp, zip(words, word_vectors))
-            #print('Results (pool):\n', results)
-            for fingerprint in results:
-                #print (fingerprint)
-                for key, value in fingerprint.items():
-                    a = self._sparsify_fingerprint(value)
-                    self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
-        
-
        
         
         """
@@ -237,10 +251,10 @@ class FingerPrint():
             a = self._sparsify_fingerprint(a)
             self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
         """
-    def _check_existing_word_fp(self, image_dir, words):
+    def _check_existing_word_fp(self, image_dir, words, fraction=None):
         
         if not os.path.exists("./images/"+image_dir):
-            return words
+            pass
         else:
             i = 0
             ind2remove = []
@@ -248,8 +262,13 @@ class FingerPrint():
                 if os.path.exists("./images/"+image_dir+"/"+word+".bmp"):
                     ind2remove.append(i)
                 i += 1 
-            #print(ind2remove)
             words = [x for i, x in enumerate(words) if i not in ind2remove]
+
+        if fraction is not None:
+            random.seed()
+            s = random.randint(1, 1000000)
+            n_samples = round(len(words) * fraction)
+            words = random.sample(words, n_samples)
         
         return words
                     
@@ -457,15 +476,8 @@ class FingerPrint():
         C = A*B
         return np.array([v1.sum() for v1 in C])  # sum number of 1 bits
 
+    """
     def _fetch_ENRG65(self, mode):
-        """Fetches ENRG65 benchmark dataset.
-        
-        Parameters
-        ---------
-        mode : str
-            'distinct_words' for getting all distinct words or 
-            'data' for getting all benchmark data
-        """
 
         filepath = './datasets/similarity/EN-RG-65.txt'
         file = open(filepath, 'r', encoding='utf-8')
@@ -493,90 +505,16 @@ class FingerPrint():
         score = float(words[2].replace('\n', ''))
         return [w1, w2, score]
 
-    def fetch(self, mode):
-        """Fetches benchmark dataset.
+    def fetch(self, dataset, mode):
         
-        Parameters
-        ---------
-        mode : str
-            'distinct_words' for getting all distinct words or 
-            'data' for getting all benchmark data
-        """
-
         dictionary = ''
-
-        # TODO: implement fecth for other benchmark datasets
-        if self.name == 'EN-RG-65':
+        if dataset == 'EN-RG-65':
             data = self._fetch_ENRG65(mode)
-        return data
-
-    """
-    def get_snippets_by_word(self, words):
-
-        logs = modelres.ModelResults('./logs')
-        results = logs.get_results(exception=self.opts['id'])
-        same_snippets_by_word = self._check_same_snippets_by_word(results)
-        
-        if len(same_snippets_by_word) > 0:
-            log_id = min(same_snippets_by_word)
-            print('Using existing snippets by word: id {}'.format(log_id))
-            with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
-                snippets_by_word = pickle.load(handle)
         else:
-            print('Creating new snippets by word: id {}'.format(self.id))
-            sentences = self._read_serialized_sentences_text('{}sentences/'.format(self.path))
-            snippets_by_word = self._get_snippets_and_counts(sentences, words)
-            with open('./serializations/snippets_by_word_{}.pkl'.format(self.id), 'wb') as f:
-                pickle.dump(snippets_by_word, f)
-            
-        return snippets_by_word
-    
-    def _check_same_snippets_by_word(self, results):
-        
-        keys = ['paragraph_length', 'dataextension']
-
-        same_snippets_by_word = []
-        for result in results:
-            
-            equal = True
-            for key in keys:
-                if (key not in result) or (result[key] != self.opts[key]):
-    
-                    equal = False
-                    continue
-
-            if equal is True:
-                #return result['id']
-                same_snippets_by_word.append(result['id'])
-            
-        return same_snippets_by_word
-    
-
-    def _read_serialized_sentences_text(self, path):
-        
-        return pd.read_pickle('{}{}.bz2'.format(path, self.sentece_length),
-                              compression="bz2")
-
-    def _get_snippets_and_counts(self, _dataframe, _word):
-        
-        snippets_and_counts = {}
-        for w in _word:
-            info = {'idx': 0, 'counts': 0}
-            snippets_and_counts[w] = [info]
-
-        for index, row in _dataframe.iterrows():
-            tokens = row['cleaned_text'].split()
-            for w in _word:
-                
-                if tokens.count(w) != 0:
-                    info = {'idx': index, 'counts': tokens.count(w)}
-                    snippets_and_counts[w].append(info)
-
-            if index % 100000 == 0:
-                print('index '+str(index))
-        
-        return snippets_and_counts
+            raise ValueError('dataset not defined.')
+        return data
     """
+    
 
 
                 

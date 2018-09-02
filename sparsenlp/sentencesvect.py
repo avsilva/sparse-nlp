@@ -44,38 +44,66 @@ class SentenceVect():
         self.snippets_by_word = None
         self.sentences = None
         
-    
-    @decorate.elapsedtime_log
-    def create_vectors(self, words):
+    def get_word_snippets(self):
         logs = modelres.ModelResults('./logs')
         results = logs.get_results(exception=self.opts['id'])
-        #results = logs.get_results()
-        same_vectors = self._check_same_sentence_vector(results)
+        same_word_snippets = self._check_same_word_snippets(results)
+        if len(same_word_snippets) == 0:
+            raise ValueError('Cannot get word snippets !!!')
+        else:
+            log_id = min(same_word_snippets)
+            print('Using existing snippets by word: id {}'.format(log_id))
+            with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
+                snippets_by_word = pickle.load(handle)
+            return snippets_by_word
         
-        if len(same_vectors) > 0:
+
+    @decorate.elapsedtime_log
+    def create_word_snippets(self, words):
+        """Creates dictonary with counts and sentence index for each benchmark word.
+            
+        
+        Returns
+        -------
+        dict
+            benchmark dataset words
+        """
+
+        logs = modelres.ModelResults('./logs')
+        results = logs.get_results(exception=self.opts['id'])
+
+        same_word_snippets = self._check_same_word_snippets(results)
+        if self.opts['repeat'] is True:
+            same_word_snippets = []
+
+        if len(same_word_snippets) > 0:
+            log_id = min(same_word_snippets)
+            print('Using existing snippets by word: id {}'.format(log_id))
+            with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
+                snippets_by_word = pickle.load(handle)
+        else:
+            print('Creating new snippets by word: id {}'.format(self.opts['id']))
+            sentences = self._read_serialized_sentences_text()
+            snippets_by_word = self._get_snippets_and_counts(sentences, words)
+            with open('./serializations/snippets_by_word_{}.pkl'.format(self.opts['id']), 'wb') as f:
+                pickle.dump(snippets_by_word, f)
+        return snippets_by_word
+
+    def get_vectors(self):
+        logs = modelres.ModelResults('./logs')
+        results = logs.get_results(exception=self.opts['id'])
+        same_vectors = self._check_same_sentence_vector(results)
+        if len(same_vectors) == 0:
+            raise ValueError('Cannot get word vectors !!!')
+        else:
             log_id = min(same_vectors)
             print ('Using existing vector representation: id {}'.format(log_id))
             with open('{}X_{}.npz'.format(self.path, log_id), 'rb') as handle:
-                self.X = pickle.load(handle)
-            print('Using existing snippets by word: id {}'.format(log_id))
-            with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
-                self.snippets_by_word = pickle.load(handle)
-        else:
-            sentences = self._read_serialized_sentences_text()
-            
-            print ('Creating new vector representation: id {}'.format(self.opts['id']))
-            self.X = self.sentence_representation(sentences.cleaned_text)
-            self._serialize_sentence_vector()
-            
-            print('Creating new snippets by word: id {}'.format(self.opts['id']))
-            self.snippets_by_word = self._get_snippets_and_counts(sentences, words)
-            with open('./serializations/snippets_by_word_{}.pkl'.format(self.opts['id']), 'wb') as f:
-                pickle.dump(self.snippets_by_word, f)
-
-        return self.snippets_by_word, self.X
+                X = pickle.load(handle)
+            return X
 
     @decorate.elapsedtime_log
-    def create_sentence_vector(self):
+    def create_vectors(self):
         """Creates vector representation of sentences
         
         Returns
@@ -86,7 +114,11 @@ class SentenceVect():
 
         logs = modelres.ModelResults('./logs')
         results = logs.get_results(exception=self.opts['id'])
+        #results = logs.get_results()
         same_vectors = self._check_same_sentence_vector(results)
+
+        if self.opts['repeat'] is True:
+            same_vectors = []
         
         if len(same_vectors) > 0:
             log_id = min(same_vectors)
@@ -100,33 +132,6 @@ class SentenceVect():
             self._serialize_sentence_vector()
 
         return self.X
-
-    def create_snippets_by_word(self, words):
-        """Returns dict with counts and sentence index for each benchmark word.
-        
-        Parameters
-        ---------
-        words : list
-            benchmark dataset words
-        """
-
-        logs = modelres.ModelResults('./logs')
-        results = logs.get_results(exception=self.opts['id'])
-        same_snippets_by_word = self._check_same_snippets_by_word(results)
-        
-        if len(same_snippets_by_word) > 0:
-            log_id = min(same_snippets_by_word)
-            print('Using existing snippets by word: id {}'.format(log_id))
-            with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
-                snippets_by_word = pickle.load(handle)
-        else:
-            print('Creating new snippets by word: id {}'.format(self.opts['id']))
-            sentences = self._read_serialized_sentences_text()
-            snippets_by_word = self._get_snippets_and_counts(sentences, words)
-            with open('./serializations/snippets_by_word_{}.pkl'.format(self.opts['id']), 'wb') as f:
-                pickle.dump(snippets_by_word, f)
-            
-        return snippets_by_word
 
     def _get_snippets_and_counts(self, _dataframe, _word):
         
@@ -210,12 +215,8 @@ class SentenceVect():
         """
 
         # TODO: refactor method: should be splited at least in two other methods
-        if self.opts['use_glove']:
+        if 'use_glove' in self.opts and self.opts['use_glove'] != False:
             
-            #data = data[:205900]
-            #data = data[:170000]
-            #print (data)
-            #data = data.tolist()
             sentences = []
             for tokens in data:
                 #print (tokens.split(' '))
@@ -276,11 +277,25 @@ class SentenceVect():
         return np.array([glove[w] for w in words])
     
     def gimme_glove(self):
-        with open("C:/Users/andre.silva/web_data/embeddings/glove.6B/{}.txt".format(self.opts['use_glove']), encoding='utf-8') as glove_raw:
+        with open("./embeddings/glove.6B/{}.txt".format(self.opts['use_glove']), encoding='utf-8') as glove_raw:
             for line in glove_raw.readlines():
                 splitted = line.split(' ')
                 yield splitted[0], np.array(splitted[1:], dtype=np.float)
 
+    def _check_same_word_snippets(self, results):
+        keys = ['paragraph_length', 'dataextension', 'testdataset']
+        same_word_snippets = []
+        for result in results:
+            equal = True
+            for key in keys:
+                if (key not in result) or (result[key] != self.opts[key]):
+                    equal = False
+                    continue
+            if equal is True:
+                same_word_snippets.append(result['id'])
+            
+        return same_word_snippets
+    
     def _check_same_sentence_vector(self, results):
         
         keys = ['paragraph_length', 'dataextension', 'n_features', 'n_components', 'use_idf', 'use_hashing', 'use_glove']
@@ -295,7 +310,6 @@ class SentenceVect():
                     continue
 
             if equal is True:
-                #return result['id']
                 same_vectors.append(result['id'])
             
         return same_vectors

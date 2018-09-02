@@ -27,13 +27,11 @@ class SentenceCluster():
         -------
         serialize_sentences()
             Get sentences from database and serialize to file
-        create_sentence_vector()
-            Creates vector representation of sentences
+        
 
     """
 
     path = './serializations/'
-    
     
     def __init__(self, opts):
         """
@@ -74,31 +72,6 @@ class SentenceCluster():
         self.__train_data.to_pickle('{}{}.bz2'.format(path, 
                                     self.opts['paragraph_length']), 
                                     compression="bz2")
-    
-    """
-    @decorate.elapsedtime_log
-    def create_sentence_vector(self):
-        
-
-        filepath = './serializations/X_{}.npz'.format(self.opts['id'])
-        if (os.path.isfile(filepath) is True):
-            self.__X = self._read_serialized_sentences_vector()
-        else:
-            
-            vectors = vect.SentenceVect(self.opts)
-            results = modelres.ModelResults('./logs')
-            #print(results.get_results()) 
-            result_id = vectors.check_same_sentence_vector(results.get_results())
-            if result_id is not False:
-                print ('Using existing vector representation: id {}'.format(result_id))
-                with open('{}X_{}.npz'.format(self.path, result_id), 'rb') as handle:
-                    self.__X = pickle.load(handle)
-            else:
-                data = self._read_serialized_sentences_text()
-                self.__X = vectors.sentence_representation(data.cleaned_text)
-                self._serialize_sentence_vector()
-        return self.__X
-    """
 
     def _read_serialized_sentences_vector(self):
         """Returns sparse matrix of sentence vectors"""
@@ -108,15 +81,30 @@ class SentenceCluster():
             self.__X = pickle.load(handle)
         return self.__X
 
+    def get_cluster(self):
+        logs = modelres.ModelResults('./logs')
+        results = logs.get_results(exception=self.opts['id'])
+        same_codebook = self.check_same_codebook(results)
+        if len(same_codebook) == 0:
+            raise ValueError('Cannot get codebook')
+        else:
+            log_id = min(same_codebook)
+            print('Using existing codebook: id {}'.format(log_id))
+            with open('./serializations/codebook_{}.npy'.format(log_id), 'rb') as handle:
+                codebook = pickle.load(handle)
+            return codebook
+
     @decorate.elapsedtime_log
     def cluster(self, X):
         """Clusters sentence vectors using the instance algorithm"""
 
-        
         logs = modelres.ModelResults('./logs')
         results = logs.get_results(exception=self.opts['id'])
         #results = logs.get_results()
         same_codebook = self.check_same_codebook(results)
+
+        if self.opts['repeat'] is True:
+            same_codebook = []
         
         if len(same_codebook) > 0:
             log_id = min(same_codebook)
