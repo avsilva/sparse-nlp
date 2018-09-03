@@ -5,6 +5,7 @@ from math import sqrt
 
 var_dict = {}
 
+
 def init_worker(H, W, N, codebook):
     # Using a dictionary is not strictly necessary. You can also
     # use global variables.

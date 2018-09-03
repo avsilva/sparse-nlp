@@ -23,17 +23,18 @@ from sparsenlp.sentencesvect import SentenceVect
 from sparsenlp.calculations import *
 from sparsenlp.sentencecluster import SentenceCluster
 import itertools
-from functools import partial
+# from functools import partial
 import multiprocessing as mp
 import dask.multiprocessing
 from dask import compute, delayed
 import random
 
+
 class FingerPrint():
     
     path = './serializations/'
 
-    def __init__(self, opts):
+    def __init__(self, opts, mode):
         """Initializes a FingerPrint instance.
 
         The instance is intended fingerprint creation and benchmark evaluation
@@ -50,8 +51,7 @@ class FingerPrint():
 
         """
         self.opts = opts
-        self.id = opts['id']
-        self.sentece_length = opts['paragraph_length']
+        self.mode = mode
         self.algos = {'KMEANS': self._kmeans, 'MINISOMBATCH': self._minisom,
                       'MINISOMRANDOM': self._minisom}
     
@@ -164,60 +164,47 @@ class FingerPrint():
             word_vectors.append({word: a})
         #print (len(all_indexes))
         #print (len(unique_indexes))
+        if self.mode == 'numba':
         
-        i = 0
-        unique_word_vectors = []
-        for idx in unique_indexes:
-            i += 1
-            unique_word_vectors.append({'idx': idx, 'vector': X[idx]})
+            i = 0
+            unique_word_vectors = []
+            for idx in unique_indexes:
+                i += 1
+                unique_word_vectors.append({'idx': idx, 'vector': X[idx]})
 
-        values = [delayed(process2)(codebook, x) for x in unique_word_vectors]
-        results = compute(*values, scheduler='processes')
+            values = [delayed(process2)(codebook, x) for x in unique_word_vectors]
+            results = compute(*values, scheduler='processes')
 
-        # transform list in dict
-        idx_vectors = {} 
-        for result in results:
-            for key in result:
-                idx_vectors[key] = result[key]
+            # transform list in dict
+            idx_vectors = {} 
+            for result in results:
+                for key in result:
+                    idx_vectors[key] = result[key]
 
-        #generate fingerprints
-        for word in words:
-            word_counts = snippets_by_word[word]
-            a = np.zeros((H, W), dtype=np.int)
-            for info in word_counts[1:]:
-                 idx = info['idx']
-                 bmu = idx_vectors[idx]
-                 a[bmu[0], bmu[1]] += info['counts']
+            #generate fingerprints
+            for word in words:
+                word_counts = snippets_by_word[word]
+                a = np.zeros((H, W), dtype=np.int)
+                for info in word_counts[1:]:
+                    idx = info['idx']
+                    bmu = idx_vectors[idx]
+                    a[bmu[0], bmu[1]] += info['counts']
 
-            a = self._sparsify_fingerprint(a)
-            self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
-        return True
+                a = self._sparsify_fingerprint(a)
+                self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
+                
+        elif self.mode == 'multiprocess':
 
-        # TODO: test performance with threads
-        values = [delayed(process)(codebook, x) for x in word_vectors]
-        results = compute(*values, scheduler='processes')
-        print (results)
-        for fingerprint in results:
-            #print (fingerprint)
-            for key, value in fingerprint.items():
-                a = self._sparsify_fingerprint(value)
-                self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
-        
-        """
-        num_processes = mp.cpu_count() - 1
-        #with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
-        #    results = pool.map(find_bmu, unique_word_vectors, 10000)
-        #return True
-
-        with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
-            results = pool.map(create_fp, word_vectors)
-            #print('Results (pool):\n', results)
-            for fingerprint in results:
-                #print (fingerprint)
-                for key, value in fingerprint.items():
-                    a = self._sparsify_fingerprint(value)
-                    self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
-        """
+            num_processes = mp.cpu_count() - 1
+            with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
+                results = pool.map(create_fp, word_vectors)
+                #print('Results (pool):\n', results)
+                for fingerprint in results:
+                    #print (fingerprint)
+                    for key, value in fingerprint.items():
+                        a = self._sparsify_fingerprint(value)
+                        self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
+            
 
         """
         word_vectors = []
