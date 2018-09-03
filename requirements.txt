@@ -1,2 +1,2 @@
-pandas==0.20.3
-SQLAlchemy==1.1.5
+minisom
+tqdm

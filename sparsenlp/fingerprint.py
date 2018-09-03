@@ -360,7 +360,7 @@ class FingerPrint():
                 n = n + h[i+b]
         return lut
 
-    # TODO: evaluate only some percentage of evaluation dataset
+    # TODO: return evaluation data percentage
     # TODO: compare pair of words
     @decorate.update_result_log
     def evaluate(self, evaluation_set, measure):

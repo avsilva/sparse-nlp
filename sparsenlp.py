@@ -23,13 +23,13 @@ if __name__ == '__main__':
     mode = sys.argv[1]
     
     opts = {
-                'id': 31, 
+                'id': 1, 
                 'paragraph_length': 300, 'dataextension': '3,4', 'n_features': 10000, 'n_components': 700, 'use_idf': False, 'use_hashing': False, 'use_glove': 'glove.6B.50d', 
                 #'algorithm': 'KMEANS', 'initialization': True, 'size': 30, 'niterations': 1000, 'minibatch': True, 
                 'algorithm': 'MINISOMBATCH', 'initialization': True, 'size': 128, 'niterations': 1000, 'minibatch': True, 
                 'testdataset': 'EN-RG-65',
                 'verbose': False,
-                'repeat': True
+                'repeat': False
         }
 
     
@@ -52,6 +52,15 @@ if __name__ == '__main__':
     elif mode == 'create_fps':
         benchmarkdata = FingerPrint(opts, 'numba')
         benchmarkdata.create_fingerprints(fraction=0.5)
+
+    elif mode == 'evaluate':
+        
+        dataset = Datasets.factory('EN-RG-65')
+        evaluation_data = dataset.get_data('data')
+        
+        benchmarkdata = FingerPrint(opts, 'numba')
+        benchmarkdata.evaluate(evaluation_data, 'cosine')
+
     elif mode == 'cluster':
 
         dataset = Datasets.factory('EN-RG-65')
@@ -104,7 +113,7 @@ if __name__ == '__main__':
         evaluation_data = benchmarkdata.fetch('data')
         benchmarkdata.evaluate(evaluation_data, 'cosine')
         
-    elif mode == 'evaluate':
+    elif mode == 'evaluate_all':
         benchmarkdata = FingerPrint(opts)
         evaluation_data = benchmarkdata.fetch('data')
         result = benchmarkdata.evaluate(evaluation_data, 'cosine')
