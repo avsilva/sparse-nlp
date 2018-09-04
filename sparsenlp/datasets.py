@@ -26,7 +26,6 @@ class Datasets():
             return WS353()
         assert 0, "Bad dataset creation: " + type
          
-        
     def get_data(self, mode):
         """Fetches benchmark dataset.
         
@@ -42,7 +41,7 @@ class Datasets():
         #elif self.name == 'EN-WS353':
         #    data = self._fetch_ENWS353(mode)
         data = self._fetch(mode)
-        return data
+        return {self.name: data}
     
     def _fetch_ENWS353(self, mode):
         pass

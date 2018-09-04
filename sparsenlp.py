@@ -10,28 +10,26 @@ from sparsenlp.datacleaner import DataCleaner
 from sparsenlp.datasets import Datasets
 
 # TODO:
-# create GCP VM instance
-# install stack
-# create fp for EN-RG-65 and EN-WS353
+# https://stackoverflow.com/questions/10818546/finding-index-of-nearest-point-in-numpy-arrays-of-x-and-y-coordinates
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
+    if len(sys.argv) < 2:
         print('USAGE: python {} mode'.format(sys.argv[0]))
         sys.exit(1)
 
     mode = sys.argv[1]
+    time1 = datetime.datetime.now()
     
     opts = {
-                'id': 1, 
-                'paragraph_length': 300, 'dataextension': '3,4', 'n_features': 10000, 'n_components': 700, 'use_idf': False, 'use_hashing': False, 'use_glove': 'glove.6B.50d', 
+                'id': 2, 
+                'paragraph_length': 300, 'dataextension': '3,4', 'n_features': 10000, 'n_components': 700, 'use_idf': False, 'use_hashing': False, 'use_glove': 'glove.6B.100d', 
                 #'algorithm': 'KMEANS', 'initialization': True, 'size': 30, 'niterations': 1000, 'minibatch': True, 
                 'algorithm': 'MINISOMBATCH', 'initialization': True, 'size': 128, 'niterations': 1000, 'minibatch': True, 
-                'testdataset': 'EN-RG-65',
+                #'testdataset': 'EN-RG-65',
                 'verbose': False,
                 'repeat': False
         }
-
     
     if mode == 'tokenize':
         datacleaner = DataCleaner()
@@ -42,24 +40,52 @@ if __name__ == '__main__':
         print ('exploding dataframe_in_snippets')
 
         datacleaner.explode_dataframe_in_snippets('text', '\n\n+')
-        
-        time1 = datetime.datetime.now()
         datacleaner.tokenize_pandas_column('text')
         datacleaner.serialize('articles3_AE.bz2', 'F:/RESEARCH/TESE/corpora/wikifiles/01012018/json/')
-        time2 = datetime.datetime.now()
-        print(time2 - time1)
         
     elif mode == 'create_fps':
-        benchmarkdata = FingerPrint(opts, 'numba')
-        benchmarkdata.create_fingerprints(fraction=0.5)
+
+        if len(sys.argv) != 4:
+            print('USAGE: python {} evaluate dataset'.format(sys.argv[0]))
+            sys.exit(1)
+
+        datareference = sys.argv[2]
+        percentage = sys.argv[3]
+
+        dataset = Datasets.factory(datareference)
+        words = dataset.get_data('distinct_words')
+        opts['new_log'] = False
+        #opts['testdataset'] = 'EN-RG-65'
+
+        vectors = SentenceVect(opts)
+        X = vectors.create_vectors()
+        snippets_by_word = vectors.create_word_snippets(words)
+
+        mycluster = SentenceCluster(opts)
+        codebook = mycluster.cluster(X)
+
+        fingerprints = FingerPrint(opts, 'numba')
+        fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
+        
 
     elif mode == 'evaluate':
-        
-        dataset = Datasets.factory('EN-RG-65')
+
+        if len(sys.argv) != 3:
+            print('USAGE: python {} evaluate dataset'.format(sys.argv[0]))
+            sys.exit(1)
+
+        datareference = sys.argv[2]
+
+        dataset = Datasets.factory(datareference)
         evaluation_data = dataset.get_data('data')
         
-        benchmarkdata = FingerPrint(opts, 'numba')
-        benchmarkdata.evaluate(evaluation_data, 'cosine')
+
+        #opts = {'id': 1, 'algorithm': 'MINISOMBATCH'}
+        opts = {'id': 2, 'algorithm': 'MINISOMBATCH'}
+
+        fingerprints = FingerPrint(opts)
+        result = fingerprints.evaluate(evaluation_data, 'cosine')
+        print ('result for {}: {}'.format(datareference, result))
 
     elif mode == 'cluster':
 
@@ -73,45 +99,13 @@ if __name__ == '__main__':
         
         vectors = SentenceVect(opts)
         X = vectors.create_vectors()
-        snippets_by_word = vectors.create_word_snippets(words)
+        #snippets_by_word = vectors.create_word_snippets(words)
         
         mycluster = SentenceCluster(opts)
         codebook = mycluster.cluster(X)
 
-        benchmarkdata = FingerPrint(opts, 'numba')
-        benchmarkdata.create_fingerprints(snippets_by_word, X, codebook)
-
-        
-        sys.exit(0)
-  
-        
-        # sentences vectors
-        benchmarkdata = FingerPrint(opts)
-        words = benchmarkdata.fetch('EN-RG-65', 'distinct_words')
-        #words = 'stove,tumbler'
-        #words = 'car,automobile'
-
-        vectors = SentenceVect(opts)
-        #snippets_by_word = vectors.create_snippets_by_word(words)
-        snippets_by_word, X = vectors.create_vectors(words)
-        print (X.shape)
-
-        # codebook creation
-        mycluster = SentenceCluster(opts)
-        codebook = mycluster.cluster(X)
-        print (codebook.shape)
-        
-        
-        print ("Creating Fingerprints...")
-        time1 = datetime.datetime.now()
-        #benchmarkdata.create_fingerprints(snippets_by_word, X, codebook, words=words)
-        benchmarkdata.create_fingerprints(snippets_by_word, X, codebook)
-        time2 = datetime.datetime.now()
-        print(time2 - time1)
-        
-        # evaluation
-        evaluation_data = benchmarkdata.fetch('data')
-        benchmarkdata.evaluate(evaluation_data, 'cosine')
+        #benchmarkdata = FingerPrint(opts, 'numba')
+        #benchmarkdata.create_fingerprints(snippets_by_word, X, codebook)
         
     elif mode == 'evaluate_all':
         benchmarkdata = FingerPrint(opts)
@@ -129,3 +123,14 @@ if __name__ == '__main__':
 
     else:
         raise ValueError('wrong mode !!!')
+
+    time2 = datetime.datetime.now()
+    print('time elapsed: {}'.format(time2 - time1))
+
+# python sparsenlp.py cluster 
+
+# python sparsenlp.py create_fps  EN-RG-65
+# python sparsenlp.py create_fps  EN-WS353 0.2
+
+# python sparsenlp.py evaluate EN-RG-65
+# python sparsenlp.py evaluate EN-WS353

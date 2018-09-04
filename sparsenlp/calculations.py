@@ -36,17 +36,21 @@ def fast_norm(x):
     """
     
     #idx = np.array(np.linalg.norm(x))
-    #return idx
     return sqrt(np.dot(x, x.T))
 
 
-def _activate(codebook, x, with_numba):
+def _activate(codebook, x, H, W):
     """Updates matrix activation_map, in this matrix
     the element i,j is the response of the neuron i,j to x"""
-    _activation_map = zeros((128, 128))
+    _activation_map = zeros((H, W))
     s = subtract(x, codebook)  # x - w
     it = nditer(_activation_map, flags=['multi_index'])
 
+    while not it.finished:
+        # || x - w ||
+        _activation_map[it.multi_index] = fast_norm(s[it.multi_index])
+        it.iternext()
+    """
     if with_numba is True:
         while not it.finished:
             # || x - w ||
@@ -57,15 +61,22 @@ def _activate(codebook, x, with_numba):
             # || x - w ||
             _activation_map[it.multi_index] = fast_norm_without_numba(s[it.multi_index])
             it.iternext()
+    """
     return _activation_map
 
 
-def find_nearest_vector(codebook, value, with_numba=True):
-    _activation_map = _activate (codebook, value, with_numba)
+def find_nearest_vector(codebook, value, H, W):
+    _activation_map = _activate (codebook, value, H, W)
     a = unravel_index(_activation_map.argmin(), _activation_map.shape)
     return a
 
 
+def process2(codebook, word_vectors, H, W):
+    
+    bmu = find_nearest_vector(codebook, word_vectors['vector'], H, W)
+    return {word_vectors['idx']: bmu}
+
+"""
 def process(codebook, word_vectors):
         
     a = np.zeros((128, 128), dtype=np.int)
@@ -79,10 +90,8 @@ def process(codebook, word_vectors):
             a[bmu[0], bmu[1]] += val['counts']
 
     return {key: a} 
+"""
 
-def process2 (codebook, word_vectors):
 
-    bmu = find_nearest_vector(codebook, word_vectors['vector'])
-    return {word_vectors['idx']: bmu}
 
     

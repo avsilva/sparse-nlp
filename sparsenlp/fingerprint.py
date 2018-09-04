@@ -34,7 +34,7 @@ class FingerPrint():
     
     path = './serializations/'
 
-    def __init__(self, opts, mode):
+    def __init__(self, opts, mode='numba'):
         """Initializes a FingerPrint instance.
 
         The instance is intended fingerprint creation and benchmark evaluation
@@ -67,6 +67,7 @@ class FingerPrint():
             words for which fingerprint will be created
         """
 
+        """
         if snippets_by_word is None:
             vectors = SentenceVect(self.opts)
             snippets_by_word = vectors.get_word_snippets()
@@ -78,13 +79,13 @@ class FingerPrint():
         if codebook is None:
             mycluster = SentenceCluster(self.opts)
             codebook = mycluster.get_cluster()
-
+        """
         if isinstance(words, str):
             words = words.split(',')
         elif words is None:
             words = list(snippets_by_word.keys())
 
-        words = self._check_existing_word_fp('fp_{}'.format(self.opts['id']), words, fraction)
+        words = self._check_existing_word_fp('fp_{}'.format(self.opts['id']), words, float(fraction))
         print ('Creating SDR for {} words'.format(len(words)))
         self.algos[self.opts['algorithm']](snippets_by_word, words, X, codebook)
 
@@ -172,7 +173,7 @@ class FingerPrint():
                 i += 1
                 unique_word_vectors.append({'idx': idx, 'vector': X[idx]})
 
-            values = [delayed(process2)(codebook, x) for x in unique_word_vectors]
+            values = [delayed(process2)(codebook, x, H, W) for x in unique_word_vectors]
             results = compute(*values, scheduler='processes')
 
             # transform list in dict
@@ -374,6 +375,8 @@ class FingerPrint():
             measure for vector pair evaluation
         """
 
+        print('Evaluating fingerperints using SDRs from images/fp_{}'.format(self.opts['id']))
+
         # Define distance measures mapping
         distance_measures = {
             "cosine": self._cosine, "euclidean": self._euclidean, 
@@ -416,7 +419,8 @@ class FingerPrint():
 
         predicted_scores = measure_fnct(A, B)
         result = scipy.stats.spearmanr(predicted_scores, bunch.y).correlation
-        return round(result, 3)
+        # return round(result, 3)
+        return result
 
     def _get_fingerprint_from_image(self, word, _mode):
         

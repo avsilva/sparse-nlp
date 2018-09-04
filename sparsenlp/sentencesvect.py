@@ -59,7 +59,7 @@ class SentenceVect():
         
 
     @decorate.elapsedtime_log
-    def create_word_snippets(self, words):
+    def create_word_snippets(self, reference_dataset):
         """Creates dictonary with counts and sentence index for each benchmark word.
             
         
@@ -69,23 +69,32 @@ class SentenceVect():
             benchmark dataset words
         """
 
+        testdataset = list(reference_dataset.keys())[0]
+        testdataset_words = list(reference_dataset.values())[0]
+
         logs = modelres.ModelResults('./logs')
-        results = logs.get_results(exception=self.opts['id'])
+  
+        excpt = self.opts['id']
+        if 'new_log' in self.opts and self.opts['new_log'] is False:
+            excpt = None
 
-        same_word_snippets = self._check_same_word_snippets(results)
+        results = logs.get_results(exception=excpt)
+        word_snippets_id = self._check_same_word_snippets(results, testdataset)
+
         if self.opts['repeat'] is True:
-            same_word_snippets = []
+            #same_word_snippets = []
+            word_snippets_id = False
 
-        if len(same_word_snippets) > 0:
-            log_id = min(same_word_snippets)
-            print('Using existing snippets by word: id {}'.format(log_id))
-            with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
+        if word_snippets_id is not False:
+            #log_id = min(same_word_snippets)
+            print('Using existing snippets by word: snippets_by_word_{}_{}.pkl'.format(word_snippets_id, testdataset))
+            with open('./serializations/snippets_by_word_{}_{}.pkl'.format(word_snippets_id, testdataset), 'rb') as handle:
                 snippets_by_word = pickle.load(handle)
         else:
             print('Creating new snippets by word: id {}'.format(self.opts['id']))
             sentences = self._read_serialized_sentences_text()
-            snippets_by_word = self._get_snippets_and_counts(sentences, words)
-            with open('./serializations/snippets_by_word_{}.pkl'.format(self.opts['id']), 'wb') as f:
+            snippets_by_word = self._get_snippets_and_counts(sentences, testdataset_words)
+            with open('./serializations/snippets_by_word_{}_{}.pkl'.format(self.opts['id'], testdataset), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
         return snippets_by_word
 
@@ -113,8 +122,12 @@ class SentenceVect():
         """
 
         logs = modelres.ModelResults('./logs')
-        results = logs.get_results(exception=self.opts['id'])
-        #results = logs.get_results()
+
+        excpt = self.opts['id']
+        if 'new_log' in self.opts and self.opts['new_log'] is False:
+            excpt = None
+
+        results = logs.get_results(exception=excpt)
         same_vectors = self._check_same_sentence_vector(results)
 
         if self.opts['repeat'] is True:
@@ -282,8 +295,9 @@ class SentenceVect():
                 splitted = line.split(' ')
                 yield splitted[0], np.array(splitted[1:], dtype=np.float)
 
-    def _check_same_word_snippets(self, results):
-        keys = ['paragraph_length', 'dataextension', 'testdataset']
+    def _check_same_word_snippets(self, results, testdataset):
+        #keys = ['paragraph_length', 'dataextension', 'testdataset']
+        keys = ['paragraph_length', 'dataextension']
         same_word_snippets = []
         for result in results:
             equal = True
@@ -293,13 +307,24 @@ class SentenceVect():
                     continue
             if equal is True:
                 same_word_snippets.append(result['id'])
+
+        for snippets_id in same_word_snippets:
+            file = self._check_if_file_exists(snippets_id, testdataset)
+            if file is not False:
+                return snippets_id
             
-        return same_word_snippets
+        return False
     
+    def _check_if_file_exists(self, snippets_id, testdataset):
+        file = './serializations/snippets_by_word_{}_{}.pkl'.format(snippets_id, testdataset)
+        if os.path.isfile(file):
+            return snippets_id
+        else:
+            return False
+
     def _check_same_sentence_vector(self, results):
         
         keys = ['paragraph_length', 'dataextension', 'n_features', 'n_components', 'use_idf', 'use_hashing', 'use_glove']
-
         same_vectors = []
         for result in results:
             
@@ -314,6 +339,7 @@ class SentenceVect():
             
         return same_vectors
 
+    """
     def _check_same_snippets_by_word(self, results):
         
         keys = ['paragraph_length', 'dataextension']
@@ -332,3 +358,4 @@ class SentenceVect():
                 same_snippets_by_word.append(result['id'])
             
         return same_snippets_by_word
+    """

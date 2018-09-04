@@ -99,8 +99,12 @@ class SentenceCluster():
         """Clusters sentence vectors using the instance algorithm"""
 
         logs = modelres.ModelResults('./logs')
-        results = logs.get_results(exception=self.opts['id'])
-        #results = logs.get_results()
+
+        excpt = self.opts['id']
+        if 'new_log' in self.opts and self.opts['new_log'] is False:
+            excpt = None
+
+        results = logs.get_results(exception=excpt)
         same_codebook = self.check_same_codebook(results)
 
         if self.opts['repeat'] is True:
@@ -127,7 +131,7 @@ class SentenceCluster():
     def check_same_codebook(self, results):
         
         keys = ['paragraph_length', 'dataextension', 'n_features', 'n_components', 'use_idf', 
-                'use_hashing', 'algorithm', 'initialization', 'size', 
+                'use_hashing', 'use_glove', 'algorithm', 'initialization', 'size', 
                 'niterations', 'minibatch']
 
         same_codebooks = []
