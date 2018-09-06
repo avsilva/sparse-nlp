@@ -10,10 +10,38 @@
 
 ## Installation
 
+sudo apt-get update
+
+sudo apt-get install zip
+
+sudo apt remove python3
+sudo apt remove python
+wget https://repo.continuum.io/archive/Anaconda3-5.1.0-Linux-x86_64.sh
+bash Anaconda3-5.1.0-Linux-x86_64.sh
+rm Anaconda3-5.1.0-Linux-x86_64.sh
+
 git clone https://github.com/avsilva/sparse-nlp.git
 
-TODO:
-pip install -r requirements.txt
+mkdir sparse-nlp/serializations
+mkdir sparse-nlp/serializations/sentences
+mkdir sparse-nlp/images
+mkdir sparse-nlp/logs
+mkdir sparse-nlp/datasets
+mkdir sparse-nlp/datasets/analogy
+mkdir sparse-nlp/datasets/similarity
+mkdir sparse-nlp/embeddings
+mkdir sparse-nlp/embeddings/glove.6B
+
+mkdir wikiextractor
+mkdir wikiextractor/jsonfiles
+mkdir wikiextractor/jsonfiles/articles3
+
+cd sparse-nlp
+
+pip install -r requirements.txt 
+conda install --yes --file requirements2.txt
+
+python -m spacy download en
 
 ## How to use it
 
