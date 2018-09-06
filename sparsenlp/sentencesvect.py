@@ -81,7 +81,7 @@ class SentenceVect():
         results = logs.get_results(exception=excpt)
         word_snippets_id = self._check_same_word_snippets(results, testdataset)
 
-        if self.opts['repeat'] is True:
+        if 'repeat' in self.opts and self.opts['repeat'] is True:
             #same_word_snippets = []
             word_snippets_id = False
 
@@ -130,7 +130,7 @@ class SentenceVect():
         results = logs.get_results(exception=excpt)
         same_vectors = self._check_same_sentence_vector(results)
 
-        if self.opts['repeat'] is True:
+        if 'repeat' in self.opts and self.opts['repeat'] is True:
             same_vectors = []
         
         if len(same_vectors) > 0:
@@ -175,7 +175,7 @@ class SentenceVect():
                                             self.opts['paragraph_length']), 
                                             compression="bz2")
             
-            if 'dataextension' in self.opts:
+            if 'dataextension' in self.opts and self.opts['dataextension'] != '':
                 extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
                 self.sentences = self.sentences.append(extension_sentences, ignore_index=True)
 

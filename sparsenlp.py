@@ -11,6 +11,7 @@ from sparsenlp.datasets import Datasets
 
 # TODO:
 # https://stackoverflow.com/questions/10818546/finding-index-of-nearest-point-in-numpy-arrays-of-x-and-y-coordinates
+# pass log_id to python sparsenlp.py
 
 
 if __name__ == '__main__':
@@ -21,27 +22,40 @@ if __name__ == '__main__':
     mode = sys.argv[1]
     time1 = datetime.datetime.now()
     
+    """
     opts = {
-                'id': 2, 
-                'paragraph_length': 300, 'dataextension': '3,4', 'n_features': 10000, 'n_components': 700, 'use_idf': False, 'use_hashing': False, 'use_glove': 'glove.6B.100d', 
-                #'algorithm': 'KMEANS', 'initialization': True, 'size': 30, 'niterations': 1000, 'minibatch': True, 
-                'algorithm': 'MINISOMBATCH', 'initialization': True, 'size': 128, 'niterations': 1000, 'minibatch': True, 
-                #'testdataset': 'EN-RG-65',
-                'verbose': False,
-                'repeat': False
-        }
-    
+            'id': 2, 
+            'paragraph_length': 300, 'dataextension': '3,4', 'n_features': 10000, 'n_components': 700, 'use_idf': False, 'use_hashing': False, 'use_glove': 'glove.6B.100d', 
+            #'algorithm': 'KMEANS', 'initialization': True, 'size': 30, 'niterations': 1000, 'minibatch': True, 
+            'algorithm': 'MINISOMBATCH', 'initialization': True, 'size': 128, 'niterations': 1000, 'minibatch': True, 
+            #'testdataset': 'EN-RG-65',
+            'verbose': False,
+            'repeat': False
+    }
+    """
+    opts = {'id': 4, 'initialization': True, 'minibatch': False, 'verbose': False, 'n_components': 700, 'size': 64, 
+            'paragraph_length': 300, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False,  'use_idf': True, 
+            'algorithm': 'MINISOMBATCH', 'use_glove': False, 'dataextension': '3,4'}
+
+    """
+    {'id': 16, 'minibatch': True, 'n_components': 700, 'initialization': True, 'n_features': 10000, 
+    'use_idf': True, 'algorithm': 'MINISOMBATCH', 'use_hashing': False, 'size': 128,
+    'niterations': 1000, 'verbose': False, 'paragraph_length': 300}
+    """
+
     if mode == 'tokenize':
         datacleaner = DataCleaner()
-        folder = 'F:/RESEARCH/TESE/corpora/wikifiles/01012018/json/enwiki-20180101-pages-articles3.xml-p88445p200507/AE'
+        #folder = 'F:/RESEARCH/TESE/corpora/wikifiles/01012018/json/enwiki-20180101-pages-articles3.xml-p88445p200507/AE'
+        folder = '../wikiextractor/jsonfiles/articles3/AB/'
         print ('ingesting files')
-        datacleaner.ingestfiles(folder, 'pandas')    
+        datacleaner.ingestfiles(folder, 'pandas')   
         #datacleaner.data = datacleaner.data[:5]
         print ('exploding dataframe_in_snippets')
 
         datacleaner.explode_dataframe_in_snippets('text', '\n\n+')
         datacleaner.tokenize_pandas_column('text')
-        datacleaner.serialize('articles3_AE.bz2', 'F:/RESEARCH/TESE/corpora/wikifiles/01012018/json/')
+        #datacleaner.serialize('articles3_AE.bz2', 'F:/RESEARCH/TESE/corpora/wikifiles/01012018/json/')
+        datacleaner.serialize('articles3_AB.bz2', '../wikiextractor/jsonfiles/')
         
     elif mode == 'create_fps':
 
@@ -78,10 +92,11 @@ if __name__ == '__main__':
 
         dataset = Datasets.factory(datareference)
         evaluation_data = dataset.get_data('data')
+        testdataset = list(evaluation_data.values())[0]
         
 
         #opts = {'id': 1, 'algorithm': 'MINISOMBATCH'}
-        opts = {'id': 2, 'algorithm': 'MINISOMBATCH'}
+        opts = {'id': 3, 'algorithm': 'MINISOMBATCH'}
 
         fingerprints = FingerPrint(opts)
         result = fingerprints.evaluate(evaluation_data, 'cosine')
@@ -89,9 +104,9 @@ if __name__ == '__main__':
 
     elif mode == 'cluster':
 
-        dataset = Datasets.factory('EN-RG-65')
-        words = dataset.get_data('distinct_words')
-        print (len(words))
+        #dataset = Datasets.factory('EN-RG-65')
+        #words = dataset.get_data('distinct_words')
+        #print (len(words))
 
         #dataset = Datasets.factory('EN-WS353')
         #words = dataset.get_data('distinct_words')
@@ -129,8 +144,8 @@ if __name__ == '__main__':
 
 # python sparsenlp.py cluster 
 
-# python sparsenlp.py create_fps  EN-RG-65
-# python sparsenlp.py create_fps  EN-WS353 0.2
+# python sparsenlp.py create_fps  EN-RG-65 1
+# python sparsenlp.py create_fps  EN-WS353 0.5
 
 # python sparsenlp.py evaluate EN-RG-65
 # python sparsenlp.py evaluate EN-WS353

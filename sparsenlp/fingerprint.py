@@ -377,6 +377,9 @@ class FingerPrint():
 
         print('Evaluating fingerperints using SDRs from images/fp_{}'.format(self.opts['id']))
 
+        
+        testdataset = list(evaluation_set.values())[0]
+
         # Define distance measures mapping
         distance_measures = {
             "cosine": self._cosine, "euclidean": self._euclidean, 
@@ -385,9 +388,9 @@ class FingerPrint():
             'earth movers distance': self._wasserstein,
         }
 
-        w1 = evaluation_set[0]
-        w2 = evaluation_set[1]
-        score = evaluation_set[2]
+        w1 = testdataset[0]
+        w2 = testdataset[1]
+        score = testdataset[2]
         
         df = pd.DataFrame({0: w1, 1: w2, 2: score})
         bunch = Bunch(X=df.values[:, 0:2].astype("object"),

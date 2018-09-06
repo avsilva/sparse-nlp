@@ -107,7 +107,7 @@ class SentenceCluster():
         results = logs.get_results(exception=excpt)
         same_codebook = self.check_same_codebook(results)
 
-        if self.opts['repeat'] is True:
+        if 'repeat' in self.opts and self.opts['repeat'] is True:
             same_codebook = []
         
         if len(same_codebook) > 0:
