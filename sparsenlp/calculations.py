@@ -2,6 +2,7 @@ import numpy as np
 from numba import njit
 from numpy import (zeros, subtract, nditer, unravel_index)
 from math import sqrt
+from scipy import spatial
 
 var_dict = {}
 
@@ -76,21 +77,24 @@ def process2(codebook, word_vectors, H, W):
     bmu = find_nearest_vector(codebook, word_vectors['vector'], H, W)
     return {word_vectors['idx']: bmu}
 
-"""
-def process(codebook, word_vectors):
-        
-    a = np.zeros((128, 128), dtype=np.int)
 
-    for key, value in word_vectors.items():
-        print (key, len(value))
-        for val in value:
-            idx = val['idx']
-            #bmu = SOM.winner(val['vector'])
-            bmu = find_nearest_vector(codebook, val['vector'])
-            a[bmu[0], bmu[1]] += val['counts']
+def calculate_cKDTree (codebook, x):
+    distance, index = spatial.cKDTree(codebook).query(x)
+    return index
 
-    return {key: a} 
-"""
+def find_nearest_vector_ckdtree(codebook, x, H, W):
+    
+    #distance, index = spatial.cKDTree(codebook).query(x)
+    index = calculate_cKDTree(codebook, x)
+    bmu = unravel_index(index, (H, W))  
+    return bmu
+
+
+def process_ckdtree(codebook, word_vectors, H, W):
+
+    bmu = find_nearest_vector_ckdtree(codebook, word_vectors['vector'], H, W)
+    return {word_vectors['idx']: bmu}
+
 
 
 

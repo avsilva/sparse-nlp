@@ -7,6 +7,7 @@ import operator
 from functools import reduce
 import concurrent.futures
 import pandas as pd
+import datetime
 from sklearn.datasets.base import Bunch
 try:
     from skimage.measure import compare_ssim
@@ -128,6 +129,32 @@ class FingerPrint():
         
         self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']))
 
+    def _get_unique_word_vectors(self, unique_indexes, X):
+        unique_word_vectors = []
+        for idx in unique_indexes:
+            unique_word_vectors.append({'idx': idx, 'vector': X[idx]})
+        return unique_word_vectors
+
+    def _tranform_list_to_dict(self, results):
+        idx_vectors = {} 
+        for result in results:
+            for key in result:
+                idx_vectors[key] = result[key]
+        return idx_vectors
+
+    def _create_fp_for_words(self, snippets_by_word, words, idx_vectors, a):
+        for word in words:
+            word_counts = snippets_by_word[word]
+            
+            for info in word_counts[1:]:
+                idx = info['idx']
+                bmu = idx_vectors[idx]
+                a[bmu[0], bmu[1]] += info['counts']
+
+            a = self._sparsify_fingerprint(a)
+            self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
+
+
     def _minisom(self, snippets_by_word, words, X, codebook):
         """Creates fingerprints using minisom codebook.
         
@@ -139,14 +166,14 @@ class FingerPrint():
             words for which fingerprint will be created
         """
 
-        H = int(self.opts['size'])
-        W = int(self.opts['size'])
+        H = int(codebook.shape[0])
+        W = int(codebook.shape[1])
         N = X.shape[1]
 
         SOM = MiniSom(H, W, N, sigma=1.0, random_seed=1)
         SOM._weights = codebook
 
-        all_indexes = []
+        
         unique_indexes = set()
         word_vectors = []
         #print (words)
@@ -161,38 +188,36 @@ class FingerPrint():
                 #print ('idx {}'.format(idx))
                 a.append({'idx': idx, 'counts': info['counts'], 'vector': X[idx]})
                 unique_indexes.add(idx)
-                all_indexes.append(idx)
             word_vectors.append({word: a})
-        #print (len(all_indexes))
-        #print (len(unique_indexes))
-        if self.mode == 'numba':
         
-            i = 0
-            unique_word_vectors = []
-            for idx in unique_indexes:
-                i += 1
-                unique_word_vectors.append({'idx': idx, 'vector': X[idx]})
+        
+        if self.mode == 'ckdtree':
+            
+            unique_word_vectors = self._get_unique_word_vectors(unique_indexes, X)
+            codebook = np.reshape(codebook, (codebook.shape[0] * codebook.shape[1], codebook.shape[2]))
+            #values = [delayed(process_ckdtree)(codebook, x, H, W) for x in unique_word_vectors]
+            #results = compute(*values, scheduler='processes')
+            
+            results = []
+            for x in unique_word_vectors:
+                #print (x['vector'])
+                bmu = find_nearest_vector_ckdtree(codebook, x['vector'], H, W)
+                results.append({x['idx']: bmu})
+            
 
+            idx_vectors = self._tranform_list_to_dict(results)
+            a = np.zeros((H, W), dtype=np.int)
+            self._create_fp_for_words(snippets_by_word, words, idx_vectors, a)
+
+        elif self.mode == 'numba':
+            
+            unique_word_vectors = self._get_unique_word_vectors(unique_indexes, X)
             values = [delayed(process2)(codebook, x, H, W) for x in unique_word_vectors]
             results = compute(*values, scheduler='processes')
-
-            # transform list in dict
-            idx_vectors = {} 
-            for result in results:
-                for key in result:
-                    idx_vectors[key] = result[key]
-
-            #generate fingerprints
-            for word in words:
-                word_counts = snippets_by_word[word]
-                a = np.zeros((H, W), dtype=np.int)
-                for info in word_counts[1:]:
-                    idx = info['idx']
-                    bmu = idx_vectors[idx]
-                    a[bmu[0], bmu[1]] += info['counts']
-
-                a = self._sparsify_fingerprint(a)
-                self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
+            
+            idx_vectors = self._tranform_list_to_dict(results)
+            a = np.zeros((H, W), dtype=np.int)
+            self._create_fp_for_words(snippets_by_word, words, idx_vectors, a)
                 
         elif self.mode == 'multiprocess':
 
@@ -205,6 +230,8 @@ class FingerPrint():
                     for key, value in fingerprint.items():
                         a = self._sparsify_fingerprint(value)
                         self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
+
+        
             
 
         """
