@@ -39,6 +39,9 @@ class SentenceVect():
 
         """
 
+        if 'sentecefolder' in opts:
+            self.path = opts['sentecefolder']
+
         self.opts = opts
         self.X = None
         self.snippets_by_word = None
@@ -53,7 +56,7 @@ class SentenceVect():
         else:
             log_id = min(same_word_snippets)
             print('Using existing snippets by word: id {}'.format(log_id))
-            with open('./serializations/snippets_by_word_{}.pkl'.format(log_id), 'rb') as handle:
+            with open('{}snippets_by_word_{}.pkl'.format(self.path, log_id), 'rb') as handle:
                 snippets_by_word = pickle.load(handle)
             return snippets_by_word
         
@@ -62,7 +65,6 @@ class SentenceVect():
     def create_word_snippets(self, reference_dataset):
         """Creates dictonary with counts and sentence index for each benchmark word.
             
-        
         Returns
         -------
         dict
@@ -88,13 +90,13 @@ class SentenceVect():
         if word_snippets_id is not False:
             #log_id = min(same_word_snippets)
             print('Using existing snippets by word: snippets_by_word_{}_{}.pkl'.format(word_snippets_id, testdataset))
-            with open('./serializations/snippets_by_word_{}_{}.pkl'.format(word_snippets_id, testdataset), 'rb') as handle:
+            with open('{}snippets_by_word_{}_{}.pkl'.format(self.path, word_snippets_id, testdataset), 'rb') as handle:
                 snippets_by_word = pickle.load(handle)
         else:
             print('Creating new snippets by word: id {}'.format(self.opts['id']))
             sentences = self._read_serialized_sentences_text()
             snippets_by_word = self._get_snippets_and_counts(sentences, testdataset_words)
-            with open('./serializations/snippets_by_word_{}_{}.pkl'.format(self.opts['id'], testdataset), 'wb') as f:
+            with open('{}snippets_by_word_{}_{}.pkl'.format(self.path, self.opts['id'], testdataset), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
         return snippets_by_word
 
@@ -191,12 +193,12 @@ class SentenceVect():
 
         extensions = dataextension.split(',')
         for ext in extensions:
-            folder = './serializations/sentences/articles{}/'.format(ext)
+            folder = '{}sentences/articles{}/'.format(self.path, ext)
             file_list = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
             
             for file in file_list:
-                df_sentences = pd.read_pickle('./serializations/sentences/articles{}/{}'.format(
-                                                ext, file), compression="bz2")
+                df_sentences = pd.read_pickle('{}sentences/articles{}/{}'.format(
+                                                self.path, ext, file), compression="bz2")
                 new_sentences_df = new_sentences_df.append(df_sentences)
         new_sentences_df.query('text_length_tokenized > {}'.format(self.opts['paragraph_length']), inplace=True)
         new_sentences_df = new_sentences_df[['id', 'tokenized']]
@@ -207,7 +209,7 @@ class SentenceVect():
         """Serializes vector representation of sentences"""
             
         if isinstance(self.X, numpy.ndarray):
-            with open('./serializations/X_{}.npz'.format(self.opts['id']), 
+            with open('{}X_{}.npz'.format(self.path, self.opts['id']), 
                       'wb') as handle:
                 pickle.dump(self.X, handle, protocol=4)
         else:
@@ -316,7 +318,7 @@ class SentenceVect():
         return False
     
     def _check_if_file_exists(self, snippets_id, testdataset):
-        file = './serializations/snippets_by_word_{}_{}.pkl'.format(snippets_id, testdataset)
+        file = '{}snippets_by_word_{}_{}.pkl'.format(self.path, snippets_id, testdataset)
         if os.path.isfile(file):
             return snippets_id
         else:

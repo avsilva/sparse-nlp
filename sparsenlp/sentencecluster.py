@@ -41,19 +41,17 @@ class SentenceCluster():
             instance settings (e.g paragraph_length, size, algorithm)
         """
 
+        if 'sentecefolder' in opts:
+            self.path = opts['sentecefolder']
+
         self.opts = opts
         self.__train_data = None
         self.X = None
         self.algos = {'KMEANS': self._kmeans, 'MINISOMBATCH': self._minisombatch,
                       'MINISOMRANDOM': self._minisomrandom}
 
+    """
     def serialize_sentences(self):
-        """Serializes text sentences from database
-        
-        Returns
-        -----------
-        pandas dataframe
-        """
 
         path = '{}sentences/'.format(self.path)
         filepath = '{}{}.bz2'.format(path, self.opts['paragraph_length'])
@@ -67,12 +65,11 @@ class SentenceCluster():
         return self.__train_data
         
     def _serialize_sentences_text(self, path):
-        """Serializes pandas dataframe text sentences"""
 
         self.__train_data.to_pickle('{}{}.bz2'.format(path, 
                                     self.opts['paragraph_length']), 
                                     compression="bz2")
-
+    """
     def _read_serialized_sentences_vector(self):
         """Returns sparse matrix of sentence vectors"""
         
@@ -81,6 +78,7 @@ class SentenceCluster():
             self.__X = pickle.load(handle)
         return self.__X
 
+    """
     def get_cluster(self):
         logs = modelres.ModelResults('./logs')
         results = logs.get_results(exception=self.opts['id'])
@@ -93,7 +91,7 @@ class SentenceCluster():
             with open('./serializations/codebook_{}.npy'.format(log_id), 'rb') as handle:
                 codebook = pickle.load(handle)
             return codebook
-
+    """
     @decorate.elapsedtime_log
     def cluster(self, X):
         """Clusters sentence vectors using the instance algorithm"""
@@ -113,7 +111,7 @@ class SentenceCluster():
         if len(same_codebook) > 0:
             log_id = min(same_codebook)
             print('Using existing codebook: id {}'.format(log_id))
-            with open('./serializations/codebook_{}.npy'.format(log_id), 'rb') as handle:
+            with open('{}codebook_{}.npy'.format(self.path, log_id), 'rb') as handle:
                 codebook = pickle.load(handle)
         
         else:
@@ -122,7 +120,7 @@ class SentenceCluster():
             # dict self.algos contains mapping of algorithm to clustering method
             codebook = self.algos[self.opts['algorithm']]()
 
-            with open('./serializations/codebook_{}.npy'.format(self.opts['id']),
+            with open('{}codebook_{}.npy'.format(self.path, self.opts['id']),
                     'wb') as handle:
                 pickle.dump(codebook, handle)
        

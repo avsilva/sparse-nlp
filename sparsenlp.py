@@ -10,7 +10,6 @@ from sparsenlp.datacleaner import DataCleaner
 from sparsenlp.datasets import Datasets
 
 # TODO:
-# https://stackoverflow.com/questions/10818546/finding-index-of-nearest-point-in-numpy-arrays-of-x-and-y-coordinates
 # pass log_id to python sparsenlp.py
 
 
@@ -33,8 +32,8 @@ if __name__ == '__main__':
             'repeat': False
     }
     """
-    opts = {'id': 4, 'initialization': True, 'minibatch': False, 'verbose': False, 'n_components': 700, 'size': 64, 
-            'paragraph_length': 300, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False,  'use_idf': True, 
+    opts = {'id': 5, 'initialization': True, 'minibatch': False, 'verbose': False, 'n_components': 500, 'size': 100, 
+            'paragraph_length': 300, 'niterations': 2000, 'n_features': 10000, 'use_hashing': False,  'use_idf': True, 
             'algorithm': 'MINISOMBATCH', 'use_glove': False, 'dataextension': '3,4'}
 
     """
@@ -69,6 +68,7 @@ if __name__ == '__main__':
         dataset = Datasets.factory(datareference)
         words = dataset.get_data('distinct_words')
         opts['new_log'] = False
+        opts['sentecefolder'] = '/dev/shm/'
         #opts['testdataset'] = 'EN-RG-65'
 
         vectors = SentenceVect(opts)
@@ -94,9 +94,7 @@ if __name__ == '__main__':
         evaluation_data = dataset.get_data('data')
         testdataset = list(evaluation_data.values())[0]
         
-
-        #opts = {'id': 1, 'algorithm': 'MINISOMBATCH'}
-        opts = {'id': 3, 'algorithm': 'MINISOMBATCH'}
+        opts = {'id': 4, 'algorithm': 'MINISOMBATCH'}
 
         fingerprints = FingerPrint(opts)
         result = fingerprints.evaluate(evaluation_data, 'cosine')
@@ -112,6 +110,7 @@ if __name__ == '__main__':
         #words = dataset.get_data('distinct_words')
         #print (len(words))
         
+        opts['sentecefolder'] = '/dev/shm/'
         vectors = SentenceVect(opts)
         X = vectors.create_vectors()
         #snippets_by_word = vectors.create_word_snippets(words)
