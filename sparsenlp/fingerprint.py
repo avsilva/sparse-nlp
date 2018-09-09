@@ -423,8 +423,20 @@ class FingerPrint():
         w1 = testdataset[0]
         w2 = testdataset[1]
         score = testdataset[2]
+
+        w1_ = [] 
+        w2_ = [] 
+        score_ = [] 
+        for a, b, c in zip(w1, w2, score):
+            if (os.path.isfile('./images/fp_{}/{}.bmp'.format(self.opts['id'], a)) is True) and (os.path.isfile('./images/fp_{}/{}.bmp'.format(self.opts['id'], b)) is True):
+                w1_.append(a)
+                w2_.append(b)
+                score_.append(c)
+
+        test_percentage =  round((len(w1_)/len(w1)) * 100, 1)
+        print ('test percentage = {} %'.format(test_percentage))
         
-        df = pd.DataFrame({0: w1, 1: w2, 2: score})
+        df = pd.DataFrame({0: w1_, 1: w2_, 2: score_})
         bunch = Bunch(X=df.values[:, 0:2].astype("object"),
                       y=df.values[:, 2:].astype(np.float))
 
@@ -454,7 +466,6 @@ class FingerPrint():
 
         predicted_scores = measure_fnct(A, B)
         result = scipy.stats.spearmanr(predicted_scores, bunch.y).correlation
-        # return round(result, 3)
         return result
 
     def _get_fingerprint_from_image(self, word, _mode):

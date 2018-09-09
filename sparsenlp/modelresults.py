@@ -16,6 +16,9 @@ class ModelResults():
         data = []
         for subdir, dirs, files in os.walk(self.folder):
             for file in files:
+                if (file.find('results') != -1):
+                    continue
+
                 if ( file != 'log_{}'.format(exception) ):
                     with open('{}/{}'.format(subdir, file), 'r', encoding='utf-8') as handle:
                         datafile = handle.readlines()
