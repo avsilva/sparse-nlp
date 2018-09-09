@@ -77,6 +77,15 @@ def process2(codebook, word_vectors, H, W):
     bmu = find_nearest_vector(codebook, word_vectors['vector'], H, W)
     return {word_vectors['idx']: bmu}
 
+def process3(codebook, word_vectors, H, W):
+    
+    a = np.zeros((H, W), dtype=np.int)
+    for key, value in word_vectors.items():
+        for val in value:
+            bmu = find_nearest_vector(codebook, val['vector'], H, W)
+            a[bmu[0], bmu[1]] += val['counts']
+    return {key: a}
+
 
 def calculate_cKDTree (codebook, x):
     distance, index = spatial.cKDTree(codebook).query(x)

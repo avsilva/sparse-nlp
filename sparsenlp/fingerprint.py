@@ -122,7 +122,7 @@ class FingerPrint():
                 # print (info)
                 idx = info['idx']
                 a[codebook[idx]] += info['counts']
-            #print (a)
+            #print (word)
             a = self._sparsify_fingerprint(a)
             #print (a)
             word_fingerprint[word] = a
@@ -142,15 +142,16 @@ class FingerPrint():
                 idx_vectors[key] = result[key]
         return idx_vectors
 
-    def _create_fp_for_words(self, snippets_by_word, words, idx_vectors, a):
+    def _create_fp_for_words(self, snippets_by_word, words, idx_vectors, H, W):
         for word in words:
+            a = np.zeros((H, W), dtype=np.int)
             word_counts = snippets_by_word[word]
             
             for info in word_counts[1:]:
                 idx = info['idx']
                 bmu = idx_vectors[idx]
                 a[bmu[0], bmu[1]] += info['counts']
-
+            print(word)
             a = self._sparsify_fingerprint(a)
             self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
 
@@ -192,33 +193,37 @@ class FingerPrint():
         
         
         if self.mode == 'ckdtree':
-            
+            print ('using ckdtree')
             unique_word_vectors = self._get_unique_word_vectors(unique_indexes, X)
             codebook = np.reshape(codebook, (codebook.shape[0] * codebook.shape[1], codebook.shape[2]))
-            #values = [delayed(process_ckdtree)(codebook, x, H, W) for x in unique_word_vectors]
-            #results = compute(*values, scheduler='processes')
+            values = [delayed(process_ckdtree)(codebook, x, H, W) for x in unique_word_vectors]
+            results = compute(*values, scheduler='processes')
             
-            results = []
-            for x in unique_word_vectors:
-                #print (x['vector'])
-                bmu = find_nearest_vector_ckdtree(codebook, x['vector'], H, W)
-                results.append({x['idx']: bmu})
-            
-
             idx_vectors = self._tranform_list_to_dict(results)
-            a = np.zeros((H, W), dtype=np.int)
-            self._create_fp_for_words(snippets_by_word, words, idx_vectors, a)
+            self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W)
 
         elif self.mode == 'numba':
-            
+            print ('using numba')
+
+            """
+            values = [delayed(process3)(codebook, x, H, W) for x in word_vectors]
+            results = compute(*values, scheduler='processes')
+
+            for fingerprint in results:
+                for key, value in fingerprint.items():
+                    a = self._sparsify_fingerprint(value)
+                    self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
+
+            """
             unique_word_vectors = self._get_unique_word_vectors(unique_indexes, X)
             values = [delayed(process2)(codebook, x, H, W) for x in unique_word_vectors]
             results = compute(*values, scheduler='processes')
             
             idx_vectors = self._tranform_list_to_dict(results)
             a = np.zeros((H, W), dtype=np.int)
-            self._create_fp_for_words(snippets_by_word, words, idx_vectors, a)
-                
+            self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W)
+            
+
         elif self.mode == 'multiprocess':
 
             num_processes = mp.cpu_count() - 1
