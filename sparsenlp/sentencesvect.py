@@ -94,7 +94,7 @@ class SentenceVect():
             with open('{}snippets_by_word_{}_{}.pkl'.format(self.path, word_snippets_id, testdataset), 'rb') as handle:
                 snippets_by_word = pickle.load(handle)
         else:
-            print('Creating new snippets by word: id {}'.format(self.opts['id']))
+            print('Creating new snippets by word: id {} for {}'.format(self.opts['id'], testdataset))
             sentences = self._read_serialized_sentences_text()
             snippets_by_word = self._get_snippets_and_counts(sentences, testdataset_words)
             with open('{}snippets_by_word_{}_{}.pkl'.format(self.path, self.opts['id'], testdataset), 'wb') as f:

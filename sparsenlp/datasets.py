@@ -10,9 +10,11 @@ class Datasets():
     filepath = {'EN-RG-65': './datasets/similarity/EN-RG-65.txt', 
                 'EN-WS353': './datasets/similarity/EN-WS353.txt',
                 'EN-TRUK': './datasets/similarity/EN-TRUK.txt',
+                'EN-TRUK': './datasets/similarity/EN-TRUK.txt',
+                'EN-SIM999': './datasets/similarity/EN-SIM999.txt',
                 }
 
-    def __init__(self, name, header, delimiter):
+    def __init__(self, name, header, delimiter, score_index):
         """Initializes benchmark Datasets instance.
 
         """
@@ -20,6 +22,7 @@ class Datasets():
         self.name = name
         self.header = header
         self.delimiter = delimiter
+        self.score_index = score_index
         self.path = self.filepath[self.name]
 
     def factory(type):
@@ -30,6 +33,8 @@ class Datasets():
             return WS353()
         if type == "EN-TRUK":
             return TRUK()
+        if type == "EN-SIM999":
+            return SIM999()
         assert 0, "Bad dataset creation: " + type
          
     def get_data(self, mode):
@@ -99,7 +104,8 @@ class Datasets():
         words = line.split(self.delimiter)
         w1 = words[0]
         w2 = words[1]
-        score = float(words[2].replace('\n', ''))
+        
+        score = float(words[self.score_index].replace('\n', ''))
         return [w1, w2, score]
 
 
@@ -107,19 +113,25 @@ class RG65(Datasets):
     
     def __init__(self):
         self.name = 'EN-RG-65'
-        super().__init__(self.name, header=False, delimiter='\t')
+        super().__init__(self.name, header=False, delimiter='\t', score_index=2)
         
 
 class WS353(Datasets):
     
     def __init__(self):
         self.name = 'EN-WS353'
-        super().__init__(self.name, header=True, delimiter='\t')
+        super().__init__(self.name, header=True, delimiter='\t', score_index=2)
 
 class TRUK(Datasets):
     
     def __init__(self):
         self.name = 'EN-TRUK'
-        super().__init__(self.name, header=False, delimiter=' ')
+        super().__init__(self.name, header=False, delimiter=' ', score_index=2)
+
+class SIM999(Datasets):
+    
+    def __init__(self):
+        self.name = 'EN-SIM999'
+        super().__init__(self.name, header=True, delimiter='\t', score_index=3)
        
 
