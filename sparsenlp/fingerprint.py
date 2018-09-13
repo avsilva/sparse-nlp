@@ -68,19 +68,6 @@ class FingerPrint():
             words for which fingerprint will be created
         """
 
-        """
-        if snippets_by_word is None:
-            vectors = SentenceVect(self.opts)
-            snippets_by_word = vectors.get_word_snippets()
-
-        if X is None:
-            vectors = SentenceVect(self.opts)
-            X = vectors.get_vectors()
-
-        if codebook is None:
-            mycluster = SentenceCluster(self.opts)
-            codebook = mycluster.get_cluster()
-        """
         if isinstance(words, str):
             words = words.split(',')
         elif words is None:
@@ -420,8 +407,9 @@ class FingerPrint():
             'earth movers distance': self._wasserstein,
         }
 
-        w1 = testdataset[0]
-        w2 = testdataset[1]
+        
+        w1 = [w.lower() for w in testdataset[0]]
+        w2 = [w.lower() for w in testdataset[1]]
         score = testdataset[2]
 
         w1_ = [] 
@@ -444,10 +432,11 @@ class FingerPrint():
             with open('./images/fp_{}/dict_{}.npy'.format(self.opts['id'], 
                       self.opts['id']), 'rb') as handle:
                 kmeans_fp = pickle.load(handle)
-            
+
             A = [kmeans_fp[word] for word in bunch.X[:, 0]]
             B = [kmeans_fp[word] for word in bunch.X[:, 1]]
         else:
+
 
             if measure == 'ssim':
                 mode = '2darray'
@@ -482,6 +471,10 @@ class FingerPrint():
             pix = pix.flatten()
             result = pix
 
+            if len(np.unique(result)) == 1:
+                raise ValueError('Image for {} is blank'.format(word))
+                
+
         return result
 
     def _cosine(self, A, B):
@@ -512,47 +505,3 @@ class FingerPrint():
 
         C = A*B
         return np.array([v1.sum() for v1 in C])  # sum number of 1 bits
-
-    """
-    def _fetch_ENRG65(self, mode):
-
-        filepath = './datasets/similarity/EN-RG-65.txt'
-        file = open(filepath, 'r', encoding='utf-8')
-        score = []
-        w1 = []
-        w2 = []
-        for line in file:
-            data = self._get_words_for_rg65_dataset(line)
-            w1.append(data[0])
-            w2.append(data[1])
-            score.append(data[2])
-
-        if mode == 'distinct_words':
-            words = w1 + w2
-            dictionary = set(words)
-            self.words = list(dictionary)
-            return self.words
-        elif mode == 'data':
-            return [w1, w2, score]
-
-    def _get_words_for_rg65_dataset(self, line):
-        words = line.split('\t')
-        w1 = words[0]
-        w2 = words[1]
-        score = float(words[2].replace('\n', ''))
-        return [w1, w2, score]
-
-    def fetch(self, dataset, mode):
-        
-        dictionary = ''
-        if dataset == 'EN-RG-65':
-            data = self._fetch_ENRG65(mode)
-        else:
-            raise ValueError('dataset not defined.')
-        return data
-    """
-    
-
-
-                
-                
