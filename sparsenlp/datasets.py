@@ -7,15 +7,19 @@ import ast
 
 class Datasets():
     
-    filepath = {'EN-RG-65': './datasets/similarity/EN-RG-65.txt', 'EN-WS353': './datasets/similarity/EN-WS353.txt'}
+    filepath = {'EN-RG-65': './datasets/similarity/EN-RG-65.txt', 
+                'EN-WS353': './datasets/similarity/EN-WS353.txt',
+                'EN-TRUK': './datasets/similarity/EN-TRUK.txt',
+                }
 
-    def __init__(self, name, header):
+    def __init__(self, name, header, delimiter):
         """Initializes benchmark Datasets instance.
 
         """
         
         self.name = name
         self.header = header
+        self.delimiter = delimiter
         self.path = self.filepath[self.name]
 
     def factory(type):
@@ -24,6 +28,8 @@ class Datasets():
             return RG65()
         if type == "EN-WS353": 
             return WS353()
+        if type == "EN-TRUK":
+            return TRUK()
         assert 0, "Bad dataset creation: " + type
          
     def get_data(self, mode):
@@ -59,9 +65,9 @@ class Datasets():
                 lines = file.readlines()
             else:
                 lines = file.readlines()[1:]
+
             for line in lines:
-                #print (line)
-                data = self._get_words_for_rg65_dataset(line)
+                data = self._get_words_in_dataset(line)
                 w1.append(data[0])
                 w2.append(data[1])
                 score.append(data[2])
@@ -89,24 +95,31 @@ class Datasets():
 
         return data
 
-    def _get_words_for_rg65_dataset(self, line):
-        words = line.split('\t')
+    def _get_words_in_dataset(self, line):
+        words = line.split(self.delimiter)
         w1 = words[0]
         w2 = words[1]
         score = float(words[2].replace('\n', ''))
         return [w1, w2, score]
 
+
 class RG65(Datasets):
     
     def __init__(self):
         self.name = 'EN-RG-65'
-        super().__init__(self.name, header=False)
+        super().__init__(self.name, header=False, delimiter='\t')
         
 
 class WS353(Datasets):
     
     def __init__(self):
         self.name = 'EN-WS353'
-        super().__init__(self.name, header=True)
+        super().__init__(self.name, header=True, delimiter='\t')
+
+class TRUK(Datasets):
+    
+    def __init__(self):
+        self.name = 'EN-TRUK'
+        super().__init__(self.name, header=False, delimiter=' ')
        
 
