@@ -352,7 +352,7 @@ class FingerPrint():
         if not os.path.exists("./images/{}".format(image_dir)):
             os.makedirs("./images/{}".format(image_dir))
 
-        with open('./images/{}/dict_{}.npy'.format(image_dir, self.opts['id']), 'wb') as handle:
+        with open('./images/{}/dict_{}_{}.npy'.format(image_dir, self.opts['id'], self.opts['dataset']), 'wb') as handle:
             pickle.dump(fp_dict, handle)
 
     def _create_fp_image(self, a, word, image_dir):

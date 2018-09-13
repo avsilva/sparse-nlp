@@ -73,6 +73,7 @@ class SentenceVect():
 
         testdataset = list(reference_dataset.keys())[0]
         testdataset_words = list(reference_dataset.values())[0]
+        testdataset_words = [w.lower() for w in testdataset_words]
 
         logs = modelres.ModelResults('./logs')
   
