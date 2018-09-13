@@ -101,9 +101,10 @@ def update_result_log(func):
         
         result = func(*args, **kwargs)  
         result = float(result)
+        testdataset = list(args[1].keys())[0]
         if math.isnan(result) is True:
-            result = 'nan'
-        update = {args[2]: result}
+            result = 0
+        update = {testdataset+'|'+args[2]: round(result, 3)}
         update_log(logfile, log, update)
         
         return result
