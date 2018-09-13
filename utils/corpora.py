@@ -178,9 +178,11 @@ def get_vocabulary(word_docs):
     for d in word_docs:
         for w in d:
             #only accounting for words without _ (Named Entities)
-            if w.find('_') == -1:
-                vocabulary.add(w.lower())
-            #vocabulary.add(w)
+            #if w.find('_') == -1:
+            #    vocabulary.add(w.lower())
+
+            #counting words with _ (Named Entities)
+            vocabulary.add(w)
     return vocabulary
 
 def get_snippets_by_word2(dataframe):
