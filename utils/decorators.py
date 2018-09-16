@@ -100,11 +100,11 @@ def update_result_log(func):
         log = load_logs(logfile)
         
         result = func(*args, **kwargs)  
-        result = float(result)
+        score = float(result['score'])
         testdataset = list(args[1].keys())[0]
-        if math.isnan(result) is True:
-            result = 0
-        update = {testdataset+'|'+args[2]: round(result, 3)}
+        if math.isnan(score) is True:
+            score = 0
+        update = {testdataset+'|'+args[2]: round(score, 3)}
         update_log(logfile, log, update)
         
         return result

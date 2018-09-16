@@ -106,6 +106,7 @@ class Datasets():
         w2 = words[1]
         
         score = float(words[self.score_index].replace('\n', ''))
+        #score = score * 10.0 / 4.0
         return [w1, w2, score]
 
 

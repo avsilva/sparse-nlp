@@ -380,7 +380,6 @@ class FingerPrint():
                 n = n + h[i+b]
         return lut
 
-    # TODO: return evaluation data percentage
     # TODO: compare pair of words
     @decorate.update_result_log
     def evaluate(self, evaluation_set, measure):
@@ -394,14 +393,16 @@ class FingerPrint():
             measure for vector pair evaluation
         """
 
-        print('Evaluating fingerperints using SDRs from images/fp_{}'.format(self.opts['id']))
+        #print('Evaluating fingerperints using SDRs from images/fp_{}'.format(self.opts['id']))
 
         
         testdataset = list(evaluation_set.values())[0]
+        datasetname = list(evaluation_set.keys())[0]
 
         # Define distance measures mapping
         distance_measures = {
-            "cosine": self._cosine, "euclidean": self._euclidean, 
+            "cosine": self._cosine, 
+            "euclidean": self._euclidean, 
             "similarbits": self._similarbits, 
             "structutal similarity": self._struc_similatity,
             'earth movers distance': self._wasserstein,
@@ -412,6 +413,7 @@ class FingerPrint():
         w2 = [w.lower() for w in testdataset[1]]
         score = testdataset[2]
 
+        """
         w1_ = [] 
         w2_ = [] 
         score_ = [] 
@@ -423,19 +425,33 @@ class FingerPrint():
 
         test_percentage =  round((len(w1_)/len(w1)) * 100, 1)
         print ('test percentage = {} %'.format(test_percentage))
-        
-        df = pd.DataFrame({0: w1_, 1: w2_, 2: score_})
+        """
+        df = pd.DataFrame({0: w1, 1: w2, 2: score})
         bunch = Bunch(X=df.values[:, 0:2].astype("object"),
                       y=df.values[:, 2:].astype(np.float))
 
         if (self.opts['algorithm'] == 'KMEANS'):
-            with open('./images/fp_{}/dict_{}.npy'.format(self.opts['id'], 
-                      self.opts['id']), 'rb') as handle:
-                kmeans_fp = pickle.load(handle)
 
-            A = [kmeans_fp[word] for word in bunch.X[:, 0]]
-            B = [kmeans_fp[word] for word in bunch.X[:, 1]]
+            A, B = self._get_kmeans_embeddings(bunch, datasetname)
+            test_percentage = 100
+
         else:
+
+            w1_ = [] 
+            w2_ = [] 
+            score_ = [] 
+            for a, b, c in zip(w1, w2, score):
+                if (os.path.isfile('./images/fp_{}/{}.bmp'.format(self.opts['id'], a)) is True) and (os.path.isfile('./images/fp_{}/{}.bmp'.format(self.opts['id'], b)) is True):
+                    w1_.append(a)
+                    w2_.append(b)
+                    score_.append(c)
+
+            test_percentage =  round((len(w1_)/len(w1)) * 100, 1)
+            
+            
+            df = pd.DataFrame({0: w1_, 1: w2_, 2: score_})
+            bunch = Bunch(X=df.values[:, 0:2].astype("object"),
+                      y=df.values[:, 2:].astype(np.float))
 
 
             if measure == 'ssim':
@@ -455,7 +471,23 @@ class FingerPrint():
 
         predicted_scores = measure_fnct(A, B)
         result = scipy.stats.spearmanr(predicted_scores, bunch.y).correlation
-        return result
+        
+        return {'score': result, 'percentage': test_percentage}
+
+    def _get_kmeans_embeddings(self, bunch, datasetname):
+
+        filepath = './images/fp_{}/dict_{}_{}.npy'.format(self.opts['id'], self.opts['id'], datasetname)
+        if (os.path.isfile(filepath) is False):
+            A = [0]
+            B = [0]
+        else:
+            with open(filepath, 'rb') as handle:
+                kmeans_fp = pickle.load(handle)
+
+            A = [kmeans_fp[word] for word in bunch.X[:, 0]]
+            B = [kmeans_fp[word] for word in bunch.X[:, 1]]
+
+        return A, B
 
     def _get_fingerprint_from_image(self, word, _mode):
         
@@ -493,15 +525,26 @@ class FingerPrint():
     def _struc_similatity(self, A, B):
         """Computes the structural similarity btw 2 vectors."""
 
-        return np.array([compare_ssim(v1, v2, win_size=33) for v1, v2 in zip(A, B)])
+        try:
+            return np.array([compare_ssim(v1, v2, win_size=33) for v1, v2 in zip(A, B)])
+        except AttributeError as e:
+            return 0
+        
 
     def _wasserstein(self, A, B):
         """Computes the  earth mover's distance btw 2 vectors."""
-
-        return np.array([1 - wasserstein_distance(v1, v2) for v1, v2 in zip(A, B)])
+        try:
+            return np.array([1 - wasserstein_distance(v1, v2) for v1, v2 in zip(A, B)])
+        except TypeError as e:
+            return 0
+        
         
     def _similarbits(self, A, B):
         """Computes the similar bits btw 2 vectors."""
 
-        C = A*B
-        return np.array([v1.sum() for v1 in C])  # sum number of 1 bits
+        try:
+            C = A*B
+            return np.array([v1.sum() for v1 in C])  # sum number of 1 bits
+        except TypeError as e:
+            return 0
+        

@@ -8,7 +8,7 @@ import sparsenlp.sentencesvect as vect
 import sparsenlp.modelresults as modelres
 import utils.database as db
 import utils.decorators as decorate
-from sklearn.cluster import KMeans, MiniBatchKMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans, AgglomerativeClustering, Birch, DBSCAN
 
 
 class SentenceCluster():
@@ -48,7 +48,7 @@ class SentenceCluster():
         self.__train_data = None
         self.X = None
         self.algos = {'KMEANS': self._kmeans, 'MINISOMBATCH': self._minisombatch,
-                      'MINISOMRANDOM': self._minisomrandom}
+                      'MINISOMRANDOM': self._minisomrandom, 'AGCLUSTER': self._aglom_cluster}
 
     """
     def serialize_sentences(self):
@@ -78,20 +78,6 @@ class SentenceCluster():
             self.__X = pickle.load(handle)
         return self.__X
 
-    """
-    def get_cluster(self):
-        logs = modelres.ModelResults('./logs')
-        results = logs.get_results(exception=self.opts['id'])
-        same_codebook = self.check_same_codebook(results)
-        if len(same_codebook) == 0:
-            raise ValueError('Cannot get codebook')
-        else:
-            log_id = min(same_codebook)
-            print('Using existing codebook: id {}'.format(log_id))
-            with open('./serializations/codebook_{}.npy'.format(log_id), 'rb') as handle:
-                codebook = pickle.load(handle)
-            return codebook
-    """
     @decorate.elapsedtime_log
     def cluster(self, X):
         """Clusters sentence vectors using the instance algorithm"""
@@ -147,6 +133,21 @@ class SentenceCluster():
                 same_codebooks.append(result['id'])
             
         return same_codebooks
+
+    def _aglom_cluster(self):
+
+        # https://github.com/overlap-ai/words2map/blob/master/words2map.py
+        print ('_aglom_cluster')
+        size = self.opts['size'] * self.opts['size']
+        print (size)
+        #cluster = AgglomerativeClustering(n_clusters=size)
+        #cluster = Birch(n_clusters=size)
+        cluster = DBSCAN(eps=0.3, min_samples=10)
+        #X = self.X[:10000]
+        #cluster.fit(X)
+        
+        cluster.fit(self.X)
+        return cluster.labels_
 
     def _kmeans(self):
         """Clusters sentence vectors using kmeans algorithm
