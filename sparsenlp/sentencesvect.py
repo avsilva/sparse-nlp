@@ -144,10 +144,28 @@ class SentenceVect():
         else:
             print ('Creating new vector representation: id {}'.format(self.opts['id']))
             sentences = self._read_serialized_sentences_text()
-            self.X = self.sentence_representation(sentences.cleaned_text)
+            
+            if 'token' not in self.opts:
+                self.opts['token'] = 'cleaned_text'
+
+            #self.X = self.sentence_representation(sentences.cleaned_text)
+            
+            rawdata = self._get_train_data(sentences)
+            self.X = self.sentence_representation(rawdata)
+            
             self._serialize_sentence_vector()
 
         return self.X
+
+    def _get_train_data(self, dataframe):
+
+        if self.opts['token'] == 'cleaned_text_all':
+            dataframe['train'] = dataframe['cleaned_text'].str.replace('_',' ')
+            dataframe['train'] = dataframe['cleaned_text'].str.lower()
+        else:
+            dataframe['train'] = dataframe[self.opts['token']]
+
+        return dataframe['train']
 
     def _get_snippets_and_counts(self, _dataframe, _word):
         
