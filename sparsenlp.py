@@ -1,5 +1,6 @@
 import os
 import sys
+import ast
 import datetime
 import pickle
 import numpy as np
@@ -20,27 +21,33 @@ if __name__ == '__main__':
 
     mode = sys.argv[1]
     time1 = datetime.datetime.now()
-    
-    """
-    opts = {
-            'id': 2, 
-            'paragraph_length': 300, 'dataextension': '3,4', 'n_features': 10000, 'n_components': 700, 'use_idf': False, 'use_hashing': False, 'use_glove': 'glove.6B.100d', 
-            #'algorithm': 'KMEANS', 'initialization': True, 'size': 30, 'niterations': 1000, 'minibatch': True, 
-            'algorithm': 'MINISOMBATCH', 'initialization': True, 'size': 128, 'niterations': 1000, 'minibatch': True, 
-            #'testdataset': 'EN-RG-65',
-            'verbose': False,
-            'repeat': False
-    }
-    """
-    opts = {'id': 5, 'initialization': True, 'minibatch': False, 'verbose': False, 'n_components': 500, 'size': 100, 
-            'paragraph_length': 300, 'niterations': 2000, 'n_features': 10000, 'use_hashing': False,  'use_idf': True, 
-            'algorithm': 'MINISOMBATCH', 'use_glove': False, 'dataextension': '3,4'}
 
-    """
-    {'id': 16, 'minibatch': True, 'n_components': 700, 'initialization': True, 'n_features': 10000, 
-    'use_idf': True, 'algorithm': 'MINISOMBATCH', 'use_hashing': False, 'size': 128,
-    'niterations': 1000, 'verbose': False, 'paragraph_length': 300}
-    """
+    opts = [
+        {'id': 101, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
+    'size': 64, 'paragraph_length': 100, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
+    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
+        {'id': 102, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
+    'size': 64, 'paragraph_length': 200, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
+    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
+        {'id': 103, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
+    'size': 64, 'paragraph_length': 300, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
+    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
+
+        {'id': 104, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
+    'size': 64, 'paragraph_length': 400, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
+    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
+        {'id': 105, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
+    'size': 64, 'paragraph_length': 500, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
+    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
+        {'id': 106, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
+    'size': 64, 'paragraph_length': 600, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
+    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
+        {'id': 107, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
+    'size': 64, 'paragraph_length': 700, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
+    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''}
+    ]
+
+
 
     if mode == 'tokenize':
         datacleaner = DataCleaner()
@@ -58,18 +65,27 @@ if __name__ == '__main__':
         
     elif mode == 'create_fps':
 
-        if len(sys.argv) != 4:
-            print('USAGE: python {} evaluate dataset'.format(sys.argv[0]))
+        if len(sys.argv) != 5:
+            print('USAGE: python {} logid evaluate dataset'.format(sys.argv[0]))
             sys.exit(1)
 
-        datareference = sys.argv[2]
-        percentage = sys.argv[3]
+        id = sys.argv[2]
+        datareference = sys.argv[3]
+        percentage = sys.argv[4]
+
+        with open('./logs/log_{}'.format(id), 'r', encoding='utf-8') as handle:
+            datafile = handle.readlines()
+            for x in datafile:
+                log = ast.literal_eval(x)
+
+        opts = log
 
         dataset = Datasets.factory(datareference)
         words = dataset.get_data('distinct_words')
+
         opts['new_log'] = False
         opts['sentecefolder'] = '/dev/shm/'
-        #opts['testdataset'] = 'EN-RG-65'
+        opts['dataset'] = datareference
 
         vectors = SentenceVect(opts)
         X = vectors.create_vectors()
@@ -78,6 +94,7 @@ if __name__ == '__main__':
         mycluster = SentenceCluster(opts)
         codebook = mycluster.cluster(X)
 
+        #fingerprints = FingerPrint(opts, 'ckdtree')
         fingerprints = FingerPrint(opts, 'numba')
         fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
         
@@ -85,66 +102,111 @@ if __name__ == '__main__':
     elif mode == 'evaluate':
 
         if len(sys.argv) != 3:
-            print('USAGE: python {} evaluate dataset'.format(sys.argv[0]))
+            print('USAGE: python {} evaluate log'.format(sys.argv[0]))
             sys.exit(1)
 
-        datareference = sys.argv[2]
-
-        dataset = Datasets.factory(datareference)
-        evaluation_data = dataset.get_data('data')
-        testdataset = list(evaluation_data.values())[0]
+        id = sys.argv[2]
+        with open('./logs/log_{}'.format(id), 'r', encoding='utf-8') as handle:
+            datafile = handle.readlines()
+            for x in datafile:
+                log = ast.literal_eval(x)
         
-        opts = {'id': 4, 'algorithm': 'MINISOMBATCH'}
+        opts = {'id': id, 'algorithm': log['algorithm']}
 
         fingerprints = FingerPrint(opts)
-        result = fingerprints.evaluate(evaluation_data, 'cosine')
-        print ('result for {}: {}'.format(datareference, result))
+
+        datasets = ['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999']
+        #datasets = ['EN-WS353']
+        
+        #metrics = ['cosine']
+        metrics = ['cosine', 'euclidean', 'similarbits', 'structutal similarity', 'earth movers distance']
+
+        best_scores = []
+        for dataset in datasets:
+            best = 0
+            testdata = Datasets.factory(dataset)
+            
+            evaluation_data = testdata.get_data('data')
+            
+            for metric in metrics:
+                result = fingerprints.evaluate(evaluation_data, metric)
+                
+                if result['score'] > best:
+                    #best_scores['dataset'] = [metric.upper(), result['score'], str(result['percentage']) + ' %']
+                    best_scores.append ([dataset, metric.upper(), result['score'], str(result['percentage']) + ' %'])
+                    best = result['score']
+                #print ('\nresult for {} {}: {}'.format(metric, dataset, result))
+
+        for best in best_scores:
+            print(best)
 
     elif mode == 'cluster':
-
-        #dataset = Datasets.factory('EN-RG-65')
-        #words = dataset.get_data('distinct_words')
-        #print (len(words))
-
-        #dataset = Datasets.factory('EN-WS353')
-        #words = dataset.get_data('distinct_words')
-        #print (len(words))
         
+        if len(sys.argv) != 3:
+            print('USAGE: python {} logid '.format(sys.argv[0]))
+            sys.exit(1)
+        id = sys.argv[2]
+
+        for log in opts:
+            if log['id'] == int(id):
+                opts = log
+        
+        if not isinstance(opts, dict):
+            raise ValueError('no log found with id {}'.format(id))
+
         opts['sentecefolder'] = '/dev/shm/'
         vectors = SentenceVect(opts)
         X = vectors.create_vectors()
-        #snippets_by_word = vectors.create_word_snippets(words)
         
         mycluster = SentenceCluster(opts)
         codebook = mycluster.cluster(X)
 
-        #benchmarkdata = FingerPrint(opts, 'numba')
-        #benchmarkdata.create_fingerprints(snippets_by_word, X, codebook)
-        
-    elif mode == 'evaluate_all':
-        benchmarkdata = FingerPrint(opts)
-        evaluation_data = benchmarkdata.fetch('data')
-        result = benchmarkdata.evaluate(evaluation_data, 'cosine')
-        print ('cosine distance {}'.format(result))
-        result = benchmarkdata.evaluate(evaluation_data, 'euclidean')
-        print ('euclidean distance {}'.format(result))
-        result = benchmarkdata.evaluate(evaluation_data, 'similarbits')
-        print ('similar bits {}'.format(result))
-        result = benchmarkdata.evaluate(evaluation_data, 'structutal similarity')
-        print ('structutal similarity {}'.format(result))
-        result = benchmarkdata.evaluate(evaluation_data, 'earth movers distance')
-        print ('earth movers distance {}'.format(result))
+    elif mode == 'cluster_fps':
 
+        if len(sys.argv) != 5:
+            print('USAGE: python {} logid evaluate dataset'.format(sys.argv[0]))
+            sys.exit(1)
+        id = sys.argv[2]
+        datareference = sys.argv[3]
+        percentage = sys.argv[4]
+        
+        for log in opts:
+            if log['id'] == int(id):
+                opts = log
+
+        if not isinstance(opts, dict):
+            raise ValueError('no log found with id {}'.format(id))
+        
+        opts['new_log'] = False
+        opts['sentecefolder'] = '/dev/shm/'
+        opts['dataset'] = datareference
+
+        vectors = SentenceVect(opts)
+        X = vectors.create_vectors()
+        
+        mycluster = SentenceCluster(opts)
+        codebook = mycluster.cluster(X)
+
+        dataset = Datasets.factory(datareference)
+        words = dataset.get_data('distinct_words')
+        snippets_by_word = vectors.create_word_snippets(words)
+
+        fingerprints = FingerPrint(opts, 'numba')
+        fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
+
+    
     else:
         raise ValueError('wrong mode !!!')
 
     time2 = datetime.datetime.now()
     print('time elapsed: {}'.format(time2 - time1))
 
-# python sparsenlp.py cluster 
+# python sparsenlp.py cluster 106
 
-# python sparsenlp.py create_fps  EN-RG-65 1
-# python sparsenlp.py create_fps  EN-WS353 0.5
+# python sparsenlp.py create_fps 106 EN-RG-65 1
 
-# python sparsenlp.py evaluate EN-RG-65
-# python sparsenlp.py evaluate EN-WS353
+# python sparsenlp.py cluster_fps 101 EN-RG-65 1
+# python sparsenlp.py cluster_fps 101 EN-WS353 1
+
+# python -W ignore sparsenlp.py evaluate 3
+
