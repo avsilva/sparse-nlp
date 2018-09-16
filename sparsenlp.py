@@ -10,9 +10,6 @@ from sparsenlp.fingerprint import FingerPrint
 from sparsenlp.datacleaner import DataCleaner
 from sparsenlp.datasets import Datasets
 
-# TODO:
-# pass log_id to python sparsenlp.py
-
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -23,28 +20,9 @@ if __name__ == '__main__':
     time1 = datetime.datetime.now()
 
     opts = [
-        {'id': 101, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
-    'size': 64, 'paragraph_length': 100, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
-    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
-        {'id': 102, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
-    'size': 64, 'paragraph_length': 200, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
-    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
-        {'id': 103, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
-    'size': 64, 'paragraph_length': 300, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
-    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
-
-        {'id': 104, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
+        {'id': 201, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
     'size': 64, 'paragraph_length': 400, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
-    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
-        {'id': 105, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
-    'size': 64, 'paragraph_length': 500, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
-    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
-        {'id': 106, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
-    'size': 64, 'paragraph_length': 600, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
-    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''},
-        {'id': 107, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
-    'size': 64, 'paragraph_length': 700, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
-    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': ''}
+    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': '', 'token': 'text'},
     ]
 
 
@@ -151,10 +129,10 @@ if __name__ == '__main__':
             if log['id'] == int(id):
                 opts = log
         
-        if not isinstance(opts, dict):
-            raise ValueError('no log found with id {}'.format(id))
+        assert isinstance(opts, dict), "no log found with id {}".format(id)
 
-        opts['sentecefolder'] = '/dev/shm/'
+        # opts['sentecefolder'] = '/dev/shm/'
+        opts['repeat'] = True
         vectors = SentenceVect(opts)
         X = vectors.create_vectors()
         
@@ -194,14 +172,30 @@ if __name__ == '__main__':
         fingerprints = FingerPrint(opts, 'numba')
         fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
 
-    
+    elif mode == 'clean':
+
+        if len(sys.argv) != 4:
+            print('USAGE: python {} logid dataset'.format(sys.argv[0]))
+            sys.exit(1)
+
+        id = sys.argv[2]
+        datareference = sys.argv[3]
+        files = ['./serializations/X_{}.npz'.format(id), './serializations/codebook_{}.npy'.format(id)]
+
+        for file in files:
+            print (file)
+            try:
+                os.remove(file)
+            except OSError:
+                pass
+
     else:
         raise ValueError('wrong mode !!!')
 
     time2 = datetime.datetime.now()
     print('time elapsed: {}'.format(time2 - time1))
 
-# python sparsenlp.py cluster 106
+# python -W ignore sparsenlp.py cluster 201
 
 # python sparsenlp.py create_fps 106 EN-RG-65 1
 
@@ -209,4 +203,6 @@ if __name__ == '__main__':
 # python sparsenlp.py cluster_fps 101 EN-WS353 1
 
 # python -W ignore sparsenlp.py evaluate 3
+
+# python sparsenlp.py clean 999 EN-RG-65
 
