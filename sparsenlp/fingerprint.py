@@ -26,8 +26,11 @@ from sparsenlp.sentencecluster import SentenceCluster
 import itertools
 # from functools import partial
 import multiprocessing as mp
-import dask.multiprocessing
-from dask import compute, delayed
+try:
+    import dask.multiprocessing
+    from dask import compute, delayed
+except:
+    print('ERROR: ' +str(sys.exc_info()[0]))
 import random
 
 

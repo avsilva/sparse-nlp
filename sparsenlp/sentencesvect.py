@@ -318,7 +318,7 @@ class SentenceVect():
 
     def _check_same_word_snippets(self, results, testdataset):
         #keys = ['paragraph_length', 'dataextension', 'testdataset']
-        keys = ['paragraph_length', 'dataextension']
+        keys = ['paragraph_length', 'dataextension', 'tokens']
         same_word_snippets = []
         for result in results:
             equal = True
@@ -345,7 +345,7 @@ class SentenceVect():
 
     def _check_same_sentence_vector(self, results):
         
-        keys = ['paragraph_length', 'dataextension', 'n_features', 'n_components', 'use_idf', 'use_hashing', 'use_glove']
+        keys = ['paragraph_length', 'dataextension', 'tokens', 'n_features', 'n_components', 'use_idf', 'use_hashing', 'use_glove']
         same_vectors = []
         for result in results:
             
