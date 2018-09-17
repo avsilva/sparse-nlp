@@ -114,7 +114,7 @@ class SentenceCluster():
 
     def check_same_codebook(self, results):
         
-        keys = ['paragraph_length', 'dataextension', 'n_features', 'n_components', 'use_idf', 
+        keys = ['paragraph_length', 'dataextension', 'tokens', 'n_features', 'n_components', 'use_idf', 
                 'use_hashing', 'use_glove', 'algorithm', 'initialization', 'size', 
                 'niterations', 'minibatch']
 
