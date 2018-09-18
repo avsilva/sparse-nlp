@@ -96,23 +96,11 @@ class SentenceVect():
         else:
             print('Creating new snippets by word: id {} for {}'.format(self.opts['id'], testdataset))
             sentences = self._read_serialized_sentences_text()
+
             snippets_by_word = self._get_snippets_and_counts(sentences, testdataset_words)
             with open('{}snippets_by_word_{}_{}.pkl'.format(self.path, self.opts['id'], testdataset), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
         return snippets_by_word
-
-    def get_vectors(self):
-        logs = modelres.ModelResults('./logs')
-        results = logs.get_results(exception=self.opts['id'])
-        same_vectors = self._check_same_sentence_vector(results)
-        if len(same_vectors) == 0:
-            raise ValueError('Cannot get word vectors !!!')
-        else:
-            log_id = min(same_vectors)
-            print ('Using existing vector representation: id {}'.format(log_id))
-            with open('{}X_{}.npz'.format(self.path, log_id), 'rb') as handle:
-                X = pickle.load(handle)
-            return X
 
     @decorate.elapsedtime_log
     def create_vectors(self):
@@ -143,15 +131,16 @@ class SentenceVect():
                 self.X = pickle.load(handle)
         else:
             print ('Creating new vector representation: id {}'.format(self.opts['id']))
-            sentences = self._read_serialized_sentences_text()
-            
+
+            sentences = self._read_serialized_sentences_text()            
+    
             if 'token' not in self.opts:
                 self.opts['token'] = 'cleaned_text'
 
-            #self.X = self.sentence_representation(sentences.cleaned_text)
-            
-            rawdata = self._get_train_data(sentences)
-            self.X = self.sentence_representation(rawdata)
+            self.X = self.sentence_representation(sentences[self.opts['token']])
+            #self.X = self.sentence_representation(sentences.cleaned_text)        
+            #rawdata = self._get_train_data(sentences)
+            #self.X = self.sentence_representation(rawdata)
             
             self._serialize_sentence_vector()
 
@@ -175,7 +164,7 @@ class SentenceVect():
             snippets_and_counts[w] = [info]
 
         for index, row in _dataframe.iterrows():
-            tokens = row['cleaned_text'].split()
+            tokens = row[self.opts['tokens']].split()
             for w in _word:
                 
                 if tokens.count(w) != 0:

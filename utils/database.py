@@ -17,16 +17,19 @@ from sqlalchemy import create_engine
 def get_all_data(_word=None, _limit=None):
     conn_string = 'postgresql://postgres@localhost:5432/sparsenlp'
     engine = create_engine(conn_string)
-    sql = "select article_id as id, text, cleaned_text from snippets where cleaned = 't' "
+    #sql = "select id, text, cleaned_text from snippets where cleaned = 't' "
+    sql = "select text, cleaned_text from snippets where cleaned = 't' "
 
     if _word is not None:
         sql += "and cleaned_text ilike '%%"+_word+"%%' "
         
     if _limit is not None:
-        sql += " and length(text) > "+str(_limit)
+        sql += " and length(cleaned_text) > "+str(_limit)
         
     print (sql)
     dataframe = pd.read_sql_query(sql, con=engine)
+    dataframe['cleaned_text_all'] = dataframe['cleaned_text'].str.replace('_',' ')
+    dataframe['cleaned_text_all'] = dataframe['cleaned_text_all'].str.lower()
     return dataframe
 
 def get_cleaned_data(_word=None, _limit=None):
