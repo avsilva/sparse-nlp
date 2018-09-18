@@ -10,7 +10,6 @@ class Datasets():
     filepath = {'EN-RG-65': './datasets/similarity/EN-RG-65.txt', 
                 'EN-WS353': './datasets/similarity/EN-WS353.txt',
                 'EN-TRUK': './datasets/similarity/EN-TRUK.txt',
-                'EN-TRUK': './datasets/similarity/EN-TRUK.txt',
                 'EN-SIM999': './datasets/similarity/EN-SIM999.txt',
                 }
 
