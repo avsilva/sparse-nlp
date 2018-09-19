@@ -450,6 +450,9 @@ class FingerPrint():
                     score_.append(c)
 
             test_percentage =  round((len(w1_)/len(w1)) * 100, 1)
+            if test_percentage == 0:
+                return {'score': 0, 'percentage': test_percentage}
+
             
             
             df = pd.DataFrame({0: w1_, 1: w2_, 2: score_})

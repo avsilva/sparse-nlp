@@ -9,7 +9,7 @@ from sparsenlp.sentencesvect import SentenceVect
 from sparsenlp.fingerprint import FingerPrint
 from sparsenlp.datacleaner import DataCleaner
 from sparsenlp.datasets import Datasets
-
+import experiments
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -19,26 +19,12 @@ if __name__ == '__main__':
     mode = sys.argv[1]
     time1 = datetime.datetime.now()
 
-    opts = [
-        {'id': 201, 'initialization': True, 'minibatch': True, 'verbose': False, 'n_components': 700, 
-    'size': 64, 'paragraph_length': 400, 'niterations': 1000, 'n_features': 10000, 'use_hashing': False, 'use_idf': True, 
-    'algorithm': 'KMEANS', 'use_glove': False, 'dataextension': '', 'token': 'text'},
-    ]
-
-
-
     if mode == 'tokenize':
         datacleaner = DataCleaner()
-        #folder = 'F:/RESEARCH/TESE/corpora/wikifiles/01012018/json/enwiki-20180101-pages-articles3.xml-p88445p200507/AE'
         folder = '../wikiextractor/jsonfiles/articles3/AB/'
-        print ('ingesting files')
         datacleaner.ingestfiles(folder, 'pandas')   
-        #datacleaner.data = datacleaner.data[:5]
-        print ('exploding dataframe_in_snippets')
-
         datacleaner.explode_dataframe_in_snippets('text', '\n\n+')
         datacleaner.tokenize_pandas_column('text')
-        #datacleaner.serialize('articles3_AE.bz2', 'F:/RESEARCH/TESE/corpora/wikifiles/01012018/json/')
         datacleaner.serialize('articles3_AB.bz2', '../wikiextractor/jsonfiles/')
         
     elif mode == 'create_fps':
@@ -62,7 +48,10 @@ if __name__ == '__main__':
         words = dataset.get_data('distinct_words')
 
         opts['new_log'] = False
-        opts['sentecefolder'] = '/dev/shm/'
+        opts['repeat'] = False
+        if experiments.sentecefolder is not None:
+            opts['sentecefolder'] = experiments.sentecefolder
+        
         opts['dataset'] = datareference
 
         vectors = SentenceVect(opts)
@@ -73,7 +62,9 @@ if __name__ == '__main__':
         codebook = mycluster.cluster(X)
 
         #fingerprints = FingerPrint(opts, 'ckdtree')
-        fingerprints = FingerPrint(opts, 'numba')
+
+        engine = experiments.engine
+        fingerprints = FingerPrint(opts, engine)
         fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
         
 
@@ -94,7 +85,7 @@ if __name__ == '__main__':
         fingerprints = FingerPrint(opts)
 
         datasets = ['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999']
-        #datasets = ['EN-WS353']
+        #datasets = ['EN-RG-65']
         
         #metrics = ['cosine']
         metrics = ['cosine', 'euclidean', 'similarbits', 'structutal similarity', 'earth movers distance']
@@ -125,13 +116,14 @@ if __name__ == '__main__':
             sys.exit(1)
         id = sys.argv[2]
 
-        for log in opts:
+        for log in experiments.opts:
             if log['id'] == int(id):
                 opts = log
         
         assert isinstance(opts, dict), "no log found with id {}".format(id)
 
-        # opts['sentecefolder'] = '/dev/shm/'
+        if experiments.sentecefolder is not None:
+            opts['sentecefolder'] = experiments.sentecefolder
         opts['repeat'] = True
         vectors = SentenceVect(opts)
         X = vectors.create_vectors()
@@ -148,15 +140,17 @@ if __name__ == '__main__':
         datareference = sys.argv[3]
         percentage = sys.argv[4]
         
-        for log in opts:
+        for log in experiments.opts:
             if log['id'] == int(id):
                 opts = log
 
         if not isinstance(opts, dict):
             raise ValueError('no log found with id {}'.format(id))
         
+        opts['repeat'] = True
         opts['new_log'] = False
-        opts['sentecefolder'] = '/dev/shm/'
+        if experiments.sentecefolder is not None:
+            opts['sentecefolder'] = experiments.sentecefolder
         opts['dataset'] = datareference
 
         vectors = SentenceVect(opts)
@@ -164,12 +158,13 @@ if __name__ == '__main__':
         
         mycluster = SentenceCluster(opts)
         codebook = mycluster.cluster(X)
-
+        
         dataset = Datasets.factory(datareference)
         words = dataset.get_data('distinct_words')
         snippets_by_word = vectors.create_word_snippets(words)
 
-        fingerprints = FingerPrint(opts, 'numba')
+        engine = experiments.engine
+        fingerprints = FingerPrint(opts, engine)
         fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
 
     elif mode == 'clean':
@@ -180,7 +175,16 @@ if __name__ == '__main__':
 
         id = sys.argv[2]
         datareference = sys.argv[3]
-        files = ['./serializations/X_{}.npz'.format(id), './serializations/codebook_{}.npy'.format(id)]
+        
+        if experiments.sentecefolder is not None:
+            folder = experiments.sentecefolder
+        else:
+            folder = './serializations/'
+
+        files = ['{}X_{}.npz'.format(folder, id), '{}codebook_{}.npy'.format(folder, id)]
+        datasets = ['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999']
+        for item in datasets:
+            files.append('{}snippets_by_word_{}_{}.pkl'.format(folder, id, item))
 
         for file in files:
             print (file)
@@ -197,7 +201,7 @@ if __name__ == '__main__':
 
 # python -W ignore sparsenlp.py cluster 201
 
-# python sparsenlp.py create_fps 106 EN-RG-65 1
+# python -W ignore sparsenlp.py create_fps 106 EN-RG-65 1
 
 # python sparsenlp.py cluster_fps 101 EN-RG-65 1
 # python sparsenlp.py cluster_fps 101 EN-WS353 1
