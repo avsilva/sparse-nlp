@@ -11,6 +11,47 @@ from sparsenlp.datacleaner import DataCleaner
 from sparsenlp.datasets import Datasets
 import experiments
 
+
+# TODO: loop over logs and clean/notclean
+
+def create_fingerprints(opts, snippets_by_word, X, codebook, percentage):
+    fingerprints = FingerPrint(opts, opts['engine'])
+    fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
+
+
+def get_snippets_by_word(datareference):
+    dataset = Datasets.factory(datareference)
+    words = dataset.get_data('distinct_words')
+    snippets_by_word = vectors.create_word_snippets(words)
+    return snippets_by_word
+
+
+def get_vector_representation(opts):
+    vectors = SentenceVect(opts)
+    X = vectors.create_vectors()
+    return X
+
+
+def get_cluster(opts, X):
+    mycluster = SentenceCluster(opts)
+    codebook = mycluster.cluster(X)
+    return codebook
+
+def clean_files(folder, id):
+    files = ['{}X_{}.npz'.format(folder, id), '{}codebook_{}.npy'.format(folder, id)]
+    datasets = ['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999']
+    for item in datasets:
+        files.append('{}snippets_by_word_{}_{}.pkl'.format(folder, id, item))
+
+    for file in files:
+        print (file)
+        try:
+            os.remove(file)
+        except OSError:
+            pass
+
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print('USAGE: python {} mode'.format(sys.argv[0]))
@@ -134,7 +175,7 @@ if __name__ == '__main__':
     elif mode == 'cluster_fps':
 
         if len(sys.argv) != 5:
-            print('USAGE: python {} logid evaluate dataset'.format(sys.argv[0]))
+            print('USAGE: python {} logid evaluate datareference percentage'.format(sys.argv[0]))
             sys.exit(1)
         id = sys.argv[2]
         datareference = sys.argv[3]
@@ -152,46 +193,61 @@ if __name__ == '__main__':
         if experiments.sentecefolder is not None:
             opts['sentecefolder'] = experiments.sentecefolder
         opts['dataset'] = datareference
+        opts['engine'] = experiments.engine
 
-        vectors = SentenceVect(opts)
-        X = vectors.create_vectors()
-        
-        mycluster = SentenceCluster(opts)
-        codebook = mycluster.cluster(X)
-        
-        dataset = Datasets.factory(datareference)
-        words = dataset.get_data('distinct_words')
-        snippets_by_word = vectors.create_word_snippets(words)
+        X = get_vector_representation(opts)
+        codebook = get_cluster(opts, X)
+        snippets_by_word = get_snippets_by_word(datareference)
+        create_fingerprints(opts, snippets_by_word, X, codebook, percentage)        
 
-        engine = experiments.engine
-        fingerprints = FingerPrint(opts, engine)
-        fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
+    
+    elif mode == 'cluster_fps_all':
+
+        if experiments.sentecefolder is not None:
+            folder = experiments.sentecefolder
+        else:
+            folder = './serializations/'
+        datareference = 'EN-RG-65'
+        percentage = 1
+
+        for log in experiments.opts:
+            id = opts['id']
+            opts['repeat'] = True
+            opts['new_log'] = False
+            opts['dataset'] = datareference
+            opts['engine'] = experiments.engine
+
+            X = get_vector_representation(opts)
+            codebook = get_cluster(opts, X)
+            snippets_by_word = get_snippets_by_word(datareference)
+            create_fingerprints(opts, snippets_by_word, X, codebook, percentage) 
+            clean_files(folder, id)
 
     elif mode == 'clean':
 
-        if len(sys.argv) != 4:
-            print('USAGE: python {} logid dataset'.format(sys.argv[0]))
+        if len(sys.argv) != 3:
+            print('USAGE: python {} logid'.format(sys.argv[0]))
             sys.exit(1)
 
         id = sys.argv[2]
-        datareference = sys.argv[3]
-        
+
         if experiments.sentecefolder is not None:
             folder = experiments.sentecefolder
         else:
             folder = './serializations/'
 
-        files = ['{}X_{}.npz'.format(folder, id), '{}codebook_{}.npy'.format(folder, id)]
-        datasets = ['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999']
-        for item in datasets:
-            files.append('{}snippets_by_word_{}_{}.pkl'.format(folder, id, item))
+        clean_files(folder, id)
 
-        for file in files:
-            print (file)
-            try:
-                os.remove(file)
-            except OSError:
-                pass
+    elif mode == 'clean_all':
+
+        if experiments.sentecefolder is not None:
+            folder = experiments.sentecefolder
+        else:
+            folder = './serializations/'
+
+        for log in experiments.opts:
+            clean_files(folder, id)
+
 
     else:
         raise ValueError('wrong mode !!!')

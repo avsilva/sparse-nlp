@@ -185,9 +185,11 @@ class SentenceVect():
                                             self.opts['paragraph_length']), 
                                             compression="bz2")
             
+            print(self.sentences.shape)
             if 'dataextension' in self.opts and self.opts['dataextension'] != '':
                 extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
-                self.sentences = self.sentences.append(extension_sentences, ignore_index=True)
+                self.sentences = self.sentences.append(extension_sentences, ignore_index=False)
+            print(self.sentences.shape)
 
         except OSError as e:
             raise OSError('Sentences dataframe does not exists')
@@ -202,15 +204,15 @@ class SentenceVect():
         extensions = dataextension.split(',')
         for ext in extensions:
             folder = '{}sentences/articles{}/'.format(self.path, ext)
-            file_list = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f))]
-            
+            file_list = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)) and f == 'articles{}_{}.bz2'.format(ext, self.opts['paragraph_length'])]
+            print (file_list)
             for file in file_list:
                 df_sentences = pd.read_pickle('{}sentences/articles{}/{}'.format(
                                                 self.path, ext, file), compression="bz2")
                 new_sentences_df = new_sentences_df.append(df_sentences)
-        new_sentences_df.query('text_length_tokenized > {}'.format(self.opts['paragraph_length']), inplace=True)
-        new_sentences_df = new_sentences_df[['id', 'tokenized']]
-        new_sentences_df = new_sentences_df.rename(index=str, columns={"tokenized": "cleaned_text"})
+        #new_sentences_df.query('text_length_tokenized > {}'.format(self.opts['paragraph_length']), inplace=True)
+        #new_sentences_df = new_sentences_df[['id', 'tokenized']]
+        #new_sentences_df = new_sentences_df.rename(index=str, columns={"tokenized": "cleaned_text"})
         return new_sentences_df
     
     def _serialize_sentence_vector(self):
