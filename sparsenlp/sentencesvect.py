@@ -146,6 +146,7 @@ class SentenceVect():
 
         return self.X
 
+    """
     def _get_train_data(self, dataframe):
 
         if self.opts['token'] == 'cleaned_text_all':
@@ -155,7 +156,7 @@ class SentenceVect():
             dataframe['train'] = dataframe[self.opts['token']]
 
         return dataframe['train']
-
+    """
     def _get_snippets_and_counts(self, _dataframe, _word):
         
         snippets_and_counts = {}
@@ -163,16 +164,24 @@ class SentenceVect():
             info = {'idx': 0, 'counts': 0}
             snippets_and_counts[w] = [info]
 
-        for index, row in _dataframe.iterrows():
-            tokens = row[self.opts['tokens']].split()
-            for w in _word:
-                
-                if tokens.count(w) != 0:
-                    info = {'idx': index, 'counts': tokens.count(w)}
-                    snippets_and_counts[w].append(info)
+        print (self.opts['tokens'])
+        try:
+            for index, row in _dataframe.iterrows():
 
-            if int(index) % 100000 == 0:
-                print('index {}'.format(index))
+                #print(row)
+                tokens = row[self.opts['tokens']].split()
+                for w in _word:
+                    
+                    if tokens.count(w) != 0:
+                        info = {'idx': index, 'counts': tokens.count(w)}
+                        snippets_and_counts[w].append(info)
+                
+
+                if int(index) % 100000 == 0:
+                    print('index {}'.format(index))
+
+        except AttributeError as e:
+            print (e)
         
         return snippets_and_counts
 
@@ -180,16 +189,14 @@ class SentenceVect():
         """Returns pandas dataframe text sentences"""
         
         try:
-            self.sentences = pd.read_pickle('{}{}.bz2'.format(
-                                            '{}sentences/'.format(self.path), 
-                                            self.opts['paragraph_length']), 
-                                            compression="bz2")
-            
-            print(self.sentences.shape)
+            #self.sentences = pd.read_pickle('{}{}.bz2'.format('{}sentences/'.format(self.path), self.opts['paragraph_length']), 
+            path = '{}sentences/{}.bz2'.format(self.path, self.opts['paragraph_length'])
+            self.sentences = pd.read_pickle(path, compression="bz2")
+            print (self.sentences.shape)
             if 'dataextension' in self.opts and self.opts['dataextension'] != '':
                 extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
-                self.sentences = self.sentences.append(extension_sentences, ignore_index=False)
-            print(self.sentences.shape)
+                self.sentences = self.sentences.append(extension_sentences, ignore_index=True)
+            print (self.sentences.shape)
 
         except OSError as e:
             raise OSError('Sentences dataframe does not exists')
@@ -205,11 +212,12 @@ class SentenceVect():
         for ext in extensions:
             folder = '{}sentences/articles{}/'.format(self.path, ext)
             file_list = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)) and f == 'articles{}_{}.bz2'.format(ext, self.opts['paragraph_length'])]
-            print (file_list)
+            
             for file in file_list:
                 df_sentences = pd.read_pickle('{}sentences/articles{}/{}'.format(
                                                 self.path, ext, file), compression="bz2")
                 new_sentences_df = new_sentences_df.append(df_sentences)
+                print (new_sentences_df.columns)
         #new_sentences_df.query('text_length_tokenized > {}'.format(self.opts['paragraph_length']), inplace=True)
         #new_sentences_df = new_sentences_df[['id', 'tokenized']]
         #new_sentences_df = new_sentences_df.rename(index=str, columns={"tokenized": "cleaned_text"})

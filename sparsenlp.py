@@ -19,15 +19,14 @@ def create_fingerprints(opts, snippets_by_word, X, codebook, percentage):
     fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
 
 
-def get_snippets_by_word(datareference):
+def get_snippets_by_word(vectors, datareference):
     dataset = Datasets.factory(datareference)
     words = dataset.get_data('distinct_words')
     snippets_by_word = vectors.create_word_snippets(words)
     return snippets_by_word
 
 
-def get_vector_representation(opts):
-    vectors = SentenceVect(opts)
+def get_vector_representation(vectors):
     X = vectors.create_vectors()
     return X
 
@@ -195,9 +194,10 @@ if __name__ == '__main__':
         opts['dataset'] = datareference
         opts['engine'] = experiments.engine
 
-        X = get_vector_representation(opts)
+        vectors = SentenceVect(opts)
+        X = get_vector_representation(vectors)
         codebook = get_cluster(opts, X)
-        snippets_by_word = get_snippets_by_word(datareference)
+        snippets_by_word = get_snippets_by_word(vectors, datareference)
         create_fingerprints(opts, snippets_by_word, X, codebook, percentage)        
 
     
@@ -207,20 +207,24 @@ if __name__ == '__main__':
             folder = experiments.sentecefolder
         else:
             folder = './serializations/'
+
+
         datareference = 'EN-RG-65'
         percentage = 1
 
         for log in experiments.opts:
-            id = opts['id']
-            opts['repeat'] = True
-            opts['new_log'] = False
-            opts['dataset'] = datareference
-            opts['engine'] = experiments.engine
+            id = log['id']
+            log['repeat'] = True
+            log['new_log'] = False
+            log['dataset'] = datareference
+            log['engine'] = experiments.engine
+            log['sentecefolder'] = folder
 
-            X = get_vector_representation(opts)
-            codebook = get_cluster(opts, X)
-            snippets_by_word = get_snippets_by_word(datareference)
-            create_fingerprints(opts, snippets_by_word, X, codebook, percentage) 
+            vectors = SentenceVect(log)
+            X = get_vector_representation(vectors)
+            codebook = get_cluster(log, X)
+            snippets_by_word = get_snippets_by_word(vectors, datareference)
+            create_fingerprints(log, snippets_by_word, X, codebook, percentage) 
             clean_files(folder, id)
 
     elif mode == 'clean':
