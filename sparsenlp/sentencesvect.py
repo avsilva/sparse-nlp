@@ -196,7 +196,7 @@ class SentenceVect():
             if 'dataextension' in self.opts and self.opts['dataextension'] != '':
                 extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
                 self.sentences = self.sentences.append(extension_sentences, ignore_index=True)
-            print (self.sentences.shape)
+            
 
         except OSError as e:
             raise OSError('Sentences dataframe does not exists')
@@ -217,7 +217,7 @@ class SentenceVect():
                 df_sentences = pd.read_pickle('{}sentences/articles{}/{}'.format(
                                                 self.path, ext, file), compression="bz2")
                 new_sentences_df = new_sentences_df.append(df_sentences)
-                print (new_sentences_df.columns)
+                print (new_sentences_df.shape)
         #new_sentences_df.query('text_length_tokenized > {}'.format(self.opts['paragraph_length']), inplace=True)
         #new_sentences_df = new_sentences_df[['id', 'tokenized']]
         #new_sentences_df = new_sentences_df.rename(index=str, columns={"tokenized": "cleaned_text"})
