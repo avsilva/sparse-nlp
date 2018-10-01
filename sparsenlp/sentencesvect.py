@@ -60,9 +60,15 @@ class SentenceVect():
                 snippets_by_word = pickle.load(handle)
             return snippets_by_word
         
+    def get_word_snippets(self, word_snippets):
+
+        print('Getting snippets by word: {}'.format(word_snippets))
+        with open('{}/{}'.format(self.path, word_snippets), 'rb') as handle:
+            snippets_by_word = pickle.load(handle)
+        return snippets_by_word
 
     @decorate.elapsedtime_log
-    def create_word_snippets(self, reference_dataset):
+    def create_word_snippets(self, reference_dataset, word_snippets=None):
         """Creates dictonary with counts and sentence index for each benchmark word.
             
         Returns

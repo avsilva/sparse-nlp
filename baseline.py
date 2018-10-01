@@ -3,6 +3,9 @@ import sys, os
 from sqlalchemy import create_engine
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.decomposition import TruncatedSVD
+from sklearn.preprocessing import Normalizer
+from sklearn.pipeline import make_pipeline
 import utils.evaluation as eval
 import utils.database as db
 from sklearn.datasets.base import Bunch
@@ -15,25 +18,37 @@ import pickle
 
 def get_baseline_vector(_word, voc, X):
     try:
-        key = voc[_word]
+        key = voc[_word.lower()]
+        a = X[:, key].toarray().flatten()
     except:
         #key = voc[_word]
         print (_word)
-        return X[:, 1].toarray().flatten()
-    return X[:, key].toarray().flatten()
+        #return X[:, 1].toarray().flatten()
+        #print (X.mean(axis=1).shape)
+        a = X.mean(axis=1).flatten()
+    return a
 
-
+"""
 def get_dataframe():
     conn_string = 'postgresql://postgres@localhost:5432/sparsenlp'
     engine = create_engine(conn_string)
     #sql = "select id, cleaned_text from snippets where cleaned = 't'  limit 10000"
     sql = "select id, cleaned_text from snippets where cleaned = 't'"
     return pd.read_sql_query(sql, con=engine)
+"""
+
+
+def get_train_data(_paragraph_length, _column):
+    path = './serializations/sentences/{}.bz2'.format(_paragraph_length)
+    sentences = pd.read_pickle(path, compression="bz2")
+    print(sentences.shape)
+    print(sentences.columns)
+    return sentences[_column]
 
 
 def tfidf_vectorizer(dictionary, _datasetname, reuse=True):
     
-    #reuse = False
+    reuse = False
 
     if (os.path.isfile('./serializations/baseline/X_'+_datasetname+'_baseline_tfidf.npz') is True and reuse): 
         loader = np.load('./serializations/baseline/X_'+_datasetname+'_baseline_tfidf.npz')
@@ -42,9 +57,24 @@ def tfidf_vectorizer(dictionary, _datasetname, reuse=True):
         voc = pickle.load(file)
         file.close()
     else:
-        dataframe = db.get_cleaned_data(None, None)
-        print(dataframe.shape)
-        train_data = dataframe.cleaned_text
+        
+        print("getting train data ...")
+        train_data = get_train_data(200, 'text')
+        #dataframe = db.get_cleaned_data(None, None)
+        #print(dataframe.shape)
+        #train_data = dataframe.cleaned_text
+        
+        print("vectorizing texts ...")
+        
+        vectorizer = TfidfVectorizer(
+                        max_df=0.5,
+                        min_df=2,
+                        #max_features=10000,
+                        stop_words='english',
+                        use_idf=True
+                    )
+        
+        """
         vectorizer = TfidfVectorizer(
                                     lowercase=True,
                                     #vocabulary=dictionary,
@@ -55,9 +85,16 @@ def tfidf_vectorizer(dictionary, _datasetname, reuse=True):
                                     sublinear_tf=True,
                                     use_idf=True)
         
-        print("vectorizing texts ...")
-        
+        """
         X = vectorizer.fit_transform(train_data)
+        """
+        print("dimensionality reduction SVD ...")
+        svd = TruncatedSVD(300)
+        normalizer = Normalizer(copy=False)
+        lsa = make_pipeline(svd, normalizer)
+        X = lsa.fit_transform(X)
+        """
+
         voc = vectorizer.vocabulary_
         if reuse:
             with open('./serializations/baseline/vocabulary_'+_datasetname+'.pkl', 'wb') as f:
@@ -185,6 +222,12 @@ def wiki_tfidf(bunch, dictionary, datasetname):
     voc, X = tfidf_vectorizer(dictionary, datasetname)
     print(X.shape)
     print('getting baseline vectors')
+    
+    key = voc['car']
+    a = X[:, key].toarray().flatten()
+    print(a)
+    print(type(a))
+    print(a.shape)
 
     A = np.vstack(get_baseline_vector(word, voc, X) for word in bunch.X[:, 0])
     B = np.vstack(get_baseline_vector(word, voc, X) for word in bunch.X[:, 1])
@@ -222,38 +265,58 @@ VECTORS = {
 DIR = 'C:/Users/andre.silva/web_data/'
 
 if __name__ == "__main__":
-    
-    if len(sys.argv) != 4:
+
+
+    """
+    loader = np.load('./serializations/baseline/X_WS353-dataset_baseline_tfidf.npz')
+    X = csr_matrix((loader['data'], loader['indices'], loader['indptr']), shape=loader['shape'])
+    file = open('./serializations/baseline/vocabulary_WS353-dataset.pkl', 'rb')
+    voc = pickle.load(file)
+    #_word = 'five'
+    words = ['arafat', 'five']
+    A = np.vstack(get_baseline_vector(word, voc, X) for word in words)
+    sys.exit(0)
+    """
+
+    if len(sys.argv) != 3:
         print("wrong number of arguments")
-        print("python .\baseline.py <percentage> <dataset name> <vectors>")
+        print("python .\baseline.py <percentage> <vectors>")
         sys.exit()
 
     percentage = int(sys.argv[1])
-    dataset = sys.argv[2]
-    vectors = sys.argv[3]
+    #dataset = sys.argv[2]
+    vectors = sys.argv[2]
 
-    bunch, dictionary = DATASETS[dataset](percentage)
+    #datasets = ['men-dataset', 'WS353-dataset', 'ENTruk-dataset', 'EN-RG-65-dataset']
+    datasets = ['WS353-dataset']
 
-    print('dictionary len is: {}'.format(len(dictionary)))
-    print("Sample data from {}: pair \"{}\" and \"{}\" is assigned score {}".format('RG 65 dataset', bunch.X[0][0], bunch.X[0][1], bunch.y[0]))
-    print('number of compared pairs: {}'.format(bunch.X.shape))
+    voc, X = tfidf_vectorizer('', '')
 
-    print (vectors)
-    A, B = VECTORS[vectors](bunch, dictionary, dataset)
+    for dataset in datasets:
+
+        bunch, dictionary = DATASETS[dataset](percentage)
+
+        print('dictionary len is: {}'.format(len(dictionary)))
+        print("Sample data from {}: pair \"{}\" and \"{}\" is assigned score {}".format(dataset, bunch.X[0][0], bunch.X[0][1], bunch.y[0]))
+        print('number of compared pairs: {}'.format(bunch.X.shape))
+
+        #A, B = VECTORS[vectors](bunch, dictionary, '')
+        A = np.vstack(get_baseline_vector(word, voc, X) for word in bunch.X[:, 0])
+        B = np.vstack(get_baseline_vector(word, voc, X) for word in bunch.X[:, 1])
     
-    #print(A.shape, B.shape)
-    print('baseline vectors done')
+        print(A.shape, B.shape)
+        print('baseline vectors done')
+        
+        scores1, indexes_to_remove = cosine(A, B)
 
-    scores1, indexes_to_remove = cosine(A, B)
+        print('There are {} indexes to remove'.format(len(indexes_to_remove)))
 
-    print('There are {} indexes to remove'.format(len(indexes_to_remove)))
+        # y = [x for i, x in iterate(bunch.y)]
+        y = [x for i, x in enumerate(bunch.y) if i not in indexes_to_remove]
+        print('final cosine similarity score for {} is: {}'.format(dataset, scipy.stats.spearmanr(scores1, y).correlation))
 
-    # y = [x for i, x in iterate(bunch.y)]
-    y = [x for i, x in enumerate(bunch.y) if i not in indexes_to_remove]
-    print('final cosine similarity score is: {}'.format(scipy.stats.spearmanr(scores1, y).correlation))
-
-    # scores1 = ef.cosine(A, B)
-    # scores2 = ef.euclidean(A, B)
+        # scores1 = ef.cosine(A, B)
+        # scores2 = ef.euclidean(A, B)
 
 
 
@@ -265,5 +328,6 @@ if __name__ == "__main__":
 
 # python .\baseline.py 100 EN-RG-65-dataset
 # python .\baseline.py 100 EN-RG-65-dataset wiki_tfidf
+# python .\baseline.py 100 WS353-dataset wiki_tfidf
 # python .\baseline.py 100 EN-RG-65-dataset glove
 

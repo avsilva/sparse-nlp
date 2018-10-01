@@ -4,6 +4,7 @@ import ast
 import datetime
 import pickle
 import numpy as np
+import pandas as pd
 from sparsenlp.sentencecluster import SentenceCluster
 from sparsenlp.sentencesvect import SentenceVect
 from sparsenlp.fingerprint import FingerPrint
@@ -49,6 +50,17 @@ def clean_files(folder, id):
         except OSError:
             pass
 
+def get_words():
+    words = []
+    datasets = ['EN-WS353', 'EN-RG-65', 'EN-TRUK', 'EN-SIM999']
+    for d in datasets:
+        dataset = Datasets.factory(d)
+        distinct_words = dataset.get_data('distinct_words')[d]
+        words = list(set(distinct_words)) + words
+    print(len(words))
+    words = [w.lower() for w in words]
+    words = list(set(words))
+    return words
 
 
 if __name__ == '__main__':
@@ -67,10 +79,68 @@ if __name__ == '__main__':
         datacleaner.tokenize_pandas_column('text')
         datacleaner.serialize('articles3_AB.bz2', '../wikiextractor/jsonfiles/')
         
+    elif mode == 'create_word_snippets':
+        paragraph_length = 200
+        column = 'text'
+        datacleaner = DataCleaner()
+        opts = {'id': 0, 'paragraph_length': paragraph_length, 'dataextension': '3,4'}
+        vectors = SentenceVect(opts)
+        dataframe = vectors._read_serialized_sentences_text()
+        #if os.path.isfile('C:/AVS/dataframe.pkl'):
+        #    dataframe = pd.read_pickle('C:/AVS/dataframe.pkl')
+        #dataframe = dataframe[:100000]
+
+        print(dataframe.shape)
+        #print(dataframe['text'][100])
+        dataframe = datacleaner.tokenize_text(dataframe, column)
+        counter = datacleaner.get_counter(dataframe, column)
+
+        #with open('C:/AVS/counter_all_datasets_1234_{}_{}.pkl'.format(column, paragraph_length), 'wb') as f:
+        #    pickle.dump(counter, f)
+
+        words = get_words()
+        #snippets_by_word = datacleaner.get_word_snippets(words, counter)
+        snippets_by_word = datacleaner.get_word_snippets2(counter)
+        
+        with open('C:/AVS/snippetsbyword_all_datasets_1234_{}_{}.pkl'.format(column, paragraph_length), 'wb') as f:
+            pickle.dump(snippets_by_word, f)
+    
+    elif mode == 'create_fps2':
+
+        if len(sys.argv) != 4:
+            print('USAGE: python {} logid word_snippets'.format(sys.argv[0]))
+            sys.exit(1)
+
+        id = sys.argv[2]
+        wordsnippets = sys.argv[3]
+        percentage = 1
+        
+        with open('./logs/log_{}'.format(id), 'r', encoding='utf-8') as handle:
+            datafile = handle.readlines()
+            for x in datafile:
+                log = ast.literal_eval(x)
+        opts = log
+        opts['new_log'] = False
+        opts['repeat'] = False
+        if experiments.sentecefolder is not None:
+            opts['sentecefolder'] = experiments.sentecefolder
+        #opts['dataset'] = datareference
+
+        vectors = SentenceVect(opts)
+        X = vectors.create_vectors()
+        snippets_by_word = vectors.get_word_snippets(wordsnippets)
+
+        mycluster = SentenceCluster(opts)
+        codebook = mycluster.cluster(X)
+        
+        engine = experiments.engine
+        fingerprints = FingerPrint(opts, engine)
+        fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
+    
     elif mode == 'create_fps':
 
         if len(sys.argv) != 5:
-            print('USAGE: python {} logid evaluate dataset'.format(sys.argv[0]))
+            print('USAGE: python {} logid dataset percentage'.format(sys.argv[0]))
             sys.exit(1)
 
         id = sys.argv[2]
@@ -101,8 +171,6 @@ if __name__ == '__main__':
         mycluster = SentenceCluster(opts)
         codebook = mycluster.cluster(X)
 
-        #fingerprints = FingerPrint(opts, 'ckdtree')
-
         engine = experiments.engine
         fingerprints = FingerPrint(opts, engine)
         fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
@@ -124,11 +192,11 @@ if __name__ == '__main__':
 
         fingerprints = FingerPrint(opts)
 
-        datasets = ['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999']
-        #datasets = ['EN-RG-65']
+        #datasets = ['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999']
+        datasets = ['EN-WS353']
         
-        #metrics = ['cosine']
-        metrics = ['cosine', 'euclidean', 'similarbits', 'structutal similarity', 'earth movers distance']
+        metrics = ['cosine']
+        #metrics = ['cosine', 'euclidean', 'similarbits', 'structutal similarity', 'earth movers distance']
 
         best_scores = []
         for dataset in datasets:
@@ -136,10 +204,18 @@ if __name__ == '__main__':
             testdata = Datasets.factory(dataset)
             
             evaluation_data = testdata.get_data('data')
+            #print (evaluation_data)
+            a = evaluation_data['EN-WS353'][0][:39]
+            b = evaluation_data['EN-WS353'][1][:39]
+            c = evaluation_data['EN-WS353'][2][:39]
+            print(a)
+            print(b)
+            
+            evaluation_data = {'EN-WS353': [a, b, c]}
             
             for metric in metrics:
                 result = fingerprints.evaluate(evaluation_data, metric)
-                
+                print (result)
                 if result['score'] > best:
                     #best_scores['dataset'] = [metric.upper(), result['score'], str(result['percentage']) + ' %']
                     best_scores.append ([dataset, metric.upper(), result['score'], str(result['percentage']) + ' %'])
@@ -262,6 +338,7 @@ if __name__ == '__main__':
 # python -W ignore sparsenlp.py cluster 201
 
 # python -W ignore sparsenlp.py create_fps 106 EN-RG-65 1
+# python -W ignore sparsenlp.py create_fps2 100031 snippetsbyword_all_datasets_1234_text_300.pkl
 
 # python sparsenlp.py cluster_fps 101 EN-RG-65 1
 # python sparsenlp.py cluster_fps 101 EN-WS353 1

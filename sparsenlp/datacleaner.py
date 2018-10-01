@@ -8,8 +8,15 @@ import numpy as np
 import concurrent.futures
 import multiprocessing
 import tqdm
+import collections
+import re
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.tokenize import RegexpTokenizer
 from utils.corpora import clean_text as tokenizer
+from nltk.tokenize import RegexpTokenizer
 
+tokenizer = RegexpTokenizer(r'\w+')
 
 class DataCleaner():
     """Initializes an instance of data cleaner object. Tokenizes text input data.
@@ -23,6 +30,99 @@ class DataCleaner():
 
     def __init__(self):
         self.data = None
+
+    def clean2(self, text):
+        
+        
+        tokens = text.lower()
+        tokens = re.sub(r'\d+', '', tokens)
+        tokens = ' '.join(word_tokenize(tokens))
+        tokens = tokenizer.tokenize(tokens)
+        tokens = [x for x in tokens if len(x) > 2]
+        return tokens
+
+    def tokenize_text(self, dataframe, column):
+
+        #tokenizer = RegexpTokenizer(r'\w+')
+        doc_all = collections.Counter()
+        docs = []
+
+        num_processes = 6
+        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            dataframe['text'] = list(tqdm.tqdm(pool.map(self.clean2, dataframe[column], chunksize=10), total=dataframe.shape[0]))
+
+        return dataframe
+
+    def get_counter(self, dataframe, column):
+        counter = []
+        for index, row in dataframe.iterrows():
+            cnt = collections.Counter()
+            cnt['idx'] = index
+            tokens = row[column]
+            for w in tokens:
+                cnt[w] += 1
+            counter.append(cnt)
+
+            if int(index) % 50000 == 0:
+                print('index {}'.format(index))
+        
+        return counter
+
+    def get_word_snippets(self, words, counter):
+        snippets_by_word = {}
+        i = 0
+        print (len(words))
+        for w in words:
+            #print (w)
+            info = {'idx': 0, 'counts': 0}
+            snippets_by_word[w] = [info]
+            for cnt in counter:
+                
+                if w in cnt:
+                    info = {'idx': cnt['idx'], 'counts': cnt[w]}
+                    snippets_by_word[w].append(info)
+
+            if int(i) % 50 == 0:
+                print('index {}'.format(i))
+            i += 1
+        return (snippets_by_word)
+    
+    def get_word_snippets2(self, counter):
+        snippets_by_word = {}
+        i = 0
+
+        for cnt in counter:
+            a = 0
+            #if i == 100:
+                
+            for key, value in cnt.items():
+                #print(key, value)
+                info = {'idx': cnt['idx'], 'counts': value}
+                #snippets_by_word[key] = [info]
+                if key in snippets_by_word:
+                    snippets_by_word[key].append(info)
+                else:
+                    snippets_by_word[key] = [info]
+            if int(i) % 10000 == 0:
+                print('index {}'.format(i))
+            i += 1
+
+        return snippets_by_word
+        
+        for w in words:
+            #print (w)
+            info = {'idx': 0, 'counts': 0}
+            snippets_by_word[w] = [info]
+            for cnt in counter:
+                
+                if w in cnt:
+                    info = {'idx': cnt['idx'], 'counts': cnt[w]}
+                    snippets_by_word[w].append(info)
+
+            if int(i) % 50 == 0:
+                print('index {}'.format(i))
+            i += 1
+        return (snippets_by_word)
 
     def _read_files_in_folder(self, path):
         data = []

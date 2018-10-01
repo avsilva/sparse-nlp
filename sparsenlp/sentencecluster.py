@@ -203,6 +203,7 @@ class SentenceCluster():
 
     def create_kmeans_minibatch_cluster(self, size):
         
+        # TODO: n_jobs=number_of_process; number_of_seeds_to_try; max_iter = 300
         km = MiniBatchKMeans(n_clusters=size, init='k-means++', n_init=1,
                              init_size=1000, batch_size=1000, 
                              verbose=self.opts['verbose'])

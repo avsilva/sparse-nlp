@@ -342,7 +342,8 @@ class FingerPrint():
         if not os.path.exists("./images/{}".format(image_dir)):
             os.makedirs("./images/{}".format(image_dir))
 
-        with open('./images/{}/dict_{}_{}.npy'.format(image_dir, self.opts['id'], self.opts['dataset']), 'wb') as handle:
+        #with open('./images/{}/dict_{}_{}.npy'.format(image_dir, self.opts['id'], self.opts['dataset']), 'wb') as handle:
+        with open('./images/{}/dict_{}.npy'.format(image_dir, self.opts['id']), 'wb') as handle:
             pickle.dump(fp_dict, handle)
 
     def _create_fp_image(self, a, word, image_dir):
@@ -484,9 +485,12 @@ class FingerPrint():
 
         filepath = './images/fp_{}/dict_{}_{}.npy'.format(self.opts['id'], self.opts['id'], datasetname)
         if (os.path.isfile(filepath) is False):
-            A = [0]
-            B = [0]
-        else:
+            filepath = './images/fp_{}/dict_{}.npy'.format(self.opts['id'], self.opts['id'])
+            if (os.path.isfile(filepath) is False):
+                A = [0]
+                B = [0]
+
+        if (os.path.isfile(filepath) is not False):
             with open(filepath, 'rb') as handle:
                 kmeans_fp = pickle.load(handle)
 

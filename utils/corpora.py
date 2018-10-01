@@ -157,20 +157,21 @@ def get_snippets_and_counts(_dataframe, _word):
     
     return snippets_and_counts
 
-def get_word_counts_per_snippet(dataframe):
+
+def get_word_counts_per_snippet(dataframe, column):
 
     docs = []
     for index, row in dataframe.iterrows():
         doc = collections.Counter()
-        doc['id'] = row['id']
+        #doc['id'] = row['id']
         doc['idx'] = index
         #doc['bmux'] = row['bmu_x']
         #doc['bmuy'] = row['bmu_y']
-        tokens = row['cleaned_text'].split()
+        tokens = row[column].split()
 
         for w in tokens:
             doc[w] += 1
-        docs.append( doc )
+        docs.append(doc)
     return docs
 
 def get_vocabulary(word_docs):
