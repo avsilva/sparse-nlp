@@ -417,27 +417,35 @@ class FingerPrint():
         w2 = [w.lower() for w in testdataset[1]]
         score = testdataset[2]
 
-        """
-        w1_ = [] 
-        w2_ = [] 
-        score_ = [] 
-        for a, b, c in zip(w1, w2, score):
-            if (os.path.isfile('./images/fp_{}/{}.bmp'.format(self.opts['id'], a)) is True) and (os.path.isfile('./images/fp_{}/{}.bmp'.format(self.opts['id'], b)) is True):
-                w1_.append(a)
-                w2_.append(b)
-                score_.append(c)
-
-        test_percentage =  round((len(w1_)/len(w1)) * 100, 1)
-        print ('test percentage = {} %'.format(test_percentage))
-        """
         df = pd.DataFrame({0: w1, 1: w2, 2: score})
         bunch = Bunch(X=df.values[:, 0:2].astype("object"),
                       y=df.values[:, 2:].astype(np.float))
 
         if (self.opts['algorithm'] == 'KMEANS'):
 
+            filepath = './images/fp_{}/dict_{}.npy'.format(self.opts['id'], self.opts['id'])
+            if (os.path.isfile(filepath) is not False):
+                with open(filepath, 'rb') as handle:
+                    kmeans_fp = pickle.load(handle)
+
+            w1_ = [] 
+            w2_ = [] 
+            score_ = [] 
+            for a, b, c in zip(w1, w2, score):
+                if (a in kmeans_fp) and (b in kmeans_fp):
+                    w1_.append(a)
+                    w2_.append(b)
+                    score_.append(c)
+
+            test_percentage =  round((len(w1_)/len(w1)) * 100, 1)
+            if test_percentage == 0:
+                return {'score': 0, 'percentage': test_percentage}
+
+            df = pd.DataFrame({0: w1_, 1: w2_, 2: score_})
+            bunch = Bunch(X=df.values[:, 0:2].astype("object"), y=df.values[:, 2:].astype(np.float))
+
             A, B = self._get_kmeans_embeddings(bunch, datasetname)
-            test_percentage = 100
+            
 
         else:
 
@@ -457,8 +465,7 @@ class FingerPrint():
             
             
             df = pd.DataFrame({0: w1_, 1: w2_, 2: score_})
-            bunch = Bunch(X=df.values[:, 0:2].astype("object"),
-                      y=df.values[:, 2:].astype(np.float))
+            bunch = Bunch(X=df.values[:, 0:2].astype("object"), y=df.values[:, 2:].astype(np.float))
 
 
             if measure == 'ssim':
@@ -496,6 +503,7 @@ class FingerPrint():
 
             A = [kmeans_fp[word] for word in bunch.X[:, 0]]
             B = [kmeans_fp[word] for word in bunch.X[:, 1]]
+            print (A)
 
         return A, B
 
