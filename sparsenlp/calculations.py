@@ -1,5 +1,9 @@
 import numpy as np
-from numba import njit
+import sys
+try:
+    from numba import njit
+except:
+    print('ERROR: ' +str(sys.exc_info()[0]))
 from numpy import (zeros, subtract, nditer, unravel_index)
 from math import sqrt
 from scipy import spatial
@@ -30,7 +34,7 @@ def create_fp(word_vectors):
             
     return {key: a}
 
-@njit
+# @njit
 def fast_norm(x):
     """Returns norm-2 of a 1-D numpy array.
     * faster than linalg.norm in case of 1-D arrays (numpy 1.9.2rc1).

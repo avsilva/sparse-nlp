@@ -39,6 +39,7 @@ class DataCleaner():
         tokens = ' '.join(word_tokenize(tokens))
         tokens = tokenizer.tokenize(tokens)
         tokens = [x for x in tokens if len(x) > 2]
+        #tokens = [x for x in tokens if x not in stopwords.words('english')]
         return tokens
 
     def tokenize_text(self, dataframe, column):
@@ -92,16 +93,13 @@ class DataCleaner():
         i = 0
 
         for cnt in counter:
-            a = 0
-            #if i == 100:
                 
             for key, value in cnt.items():
                 #print(key, value)
                 info = {'idx': cnt['idx'], 'counts': value}
-                #snippets_by_word[key] = [info]
-                if key in snippets_by_word:
+                try:
                     snippets_by_word[key].append(info)
-                else:
+                except KeyError as e:
                     snippets_by_word[key] = [info]
             if int(i) % 10000 == 0:
                 print('index {}'.format(i))
