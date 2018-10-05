@@ -7,6 +7,7 @@ except:
 from numpy import (zeros, subtract, nditer, unravel_index)
 from math import sqrt
 from scipy import spatial
+from minisom import MiniSom
 
 var_dict = {}
 

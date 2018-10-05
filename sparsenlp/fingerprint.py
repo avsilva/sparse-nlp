@@ -101,20 +101,22 @@ class FingerPrint():
         with open('./serializations/X_{}.npz'.format(self.opts['id']), 'rb') as handle:
             X = pickle.load(handle)
         """
+        if 'sparse' in self.opts and self.opts['sparse'] == False:
+            sparsity = 0
+        else:
+            sparsity = 0.02
 
         word_fingerprint = {} 
         for word in words:
             a = np.zeros(self.opts['size'] * self.opts['size'], dtype=np.int)
             word_counts = snippets_by_word[word]
-            # print (word)
             
             for info in word_counts[1:]:
                 # print (info)
                 idx = info['idx']
                 a[codebook[idx]] += info['counts']
             #print (word)
-            a = self._sparsify_fingerprint(a)
-            #print (a)
+            a = self._sparsify_fingerprint(a, sparsity)
             word_fingerprint[word] = a
         
         self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']))
@@ -132,7 +134,7 @@ class FingerPrint():
                 idx_vectors[key] = result[key]
         return idx_vectors
 
-    def _create_fp_for_words(self, snippets_by_word, words, idx_vectors, H, W):
+    def _create_fp_for_words(self, snippets_by_word, words, idx_vectors, H, W, sparsity):
         for word in words:
             a = np.zeros((H, W), dtype=np.int)
             word_counts = snippets_by_word[word]
@@ -142,9 +144,8 @@ class FingerPrint():
                 bmu = idx_vectors[idx]
                 a[bmu[0], bmu[1]] += info['counts']
             print(word)
-            a = self._sparsify_fingerprint(a)
+            a = self._sparsify_fingerprint(a, sparsity)
             self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
-
 
     def _minisom(self, snippets_by_word, words, X, codebook):
         """Creates fingerprints using minisom codebook.
@@ -157,6 +158,11 @@ class FingerPrint():
             words for which fingerprint will be created
         """
 
+        if 'sparse' in self.opts and self.opts['sparse'] == False:
+            sparsity = 0
+        else:
+            sparsity = 0.02
+
         H = int(codebook.shape[0])
         W = int(codebook.shape[1])
         N = X.shape[1]
@@ -164,7 +170,6 @@ class FingerPrint():
         SOM = MiniSom(H, W, N, sigma=1.0, random_seed=1)
         SOM._weights = codebook
 
-        
         unique_indexes = set()
         word_vectors = []
         #print (words)
@@ -181,7 +186,6 @@ class FingerPrint():
                 unique_indexes.add(idx)
             word_vectors.append({word: a})
         
-        
         if self.mode == 'ckdtree':
             print ('using ckdtree')
             unique_word_vectors = self._get_unique_word_vectors(unique_indexes, X)
@@ -190,77 +194,30 @@ class FingerPrint():
             results = compute(*values, scheduler='processes')
             
             idx_vectors = self._tranform_list_to_dict(results)
-            self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W)
+            self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W, sparsity)
 
         elif self.mode == 'numba':
-            print ('using numba')
-
-            """
-            values = [delayed(process3)(codebook, x, H, W) for x in word_vectors]
-            results = compute(*values, scheduler='processes')
-
-            for fingerprint in results:
-                for key, value in fingerprint.items():
-                    a = self._sparsify_fingerprint(value)
-                    self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
-
-            """
+            print('using numba')
             unique_word_vectors = self._get_unique_word_vectors(unique_indexes, X)
             values = [delayed(process2)(codebook, x, H, W) for x in unique_word_vectors]
             results = compute(*values, scheduler='processes')
             
             idx_vectors = self._tranform_list_to_dict(results)
             a = np.zeros((H, W), dtype=np.int)
-            self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W)
+            self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W, sparsity)
             
-
         elif self.mode == 'multiprocess':
 
             num_processes = mp.cpu_count() - 1
             with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
                 results = pool.map(create_fp, word_vectors)
-                #print('Results (pool):\n', results)
+                
                 for fingerprint in results:
-                    #print (fingerprint)
+                
                     for key, value in fingerprint.items():
-                        a = self._sparsify_fingerprint(value)
+                        a = self._sparsify_fingerprint(value, sparsity)
                         self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
-
-        
-            
-
-        """
-        word_vectors = []
-        for word in words:
-            a = []
-            word_counts = snippets_by_word[word]
-            
-            for info in word_counts[1:]:
-                idx = info['idx']
-                a.append({'idx': idx, 'counts': info['counts'], 'vector': X[idx]})
-            print (len(a))    
-            with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
-                results = pool.map(create_fp2, a)
-                #print('Results (pool):\n', results)
-        """
        
-        
-        """
-        for word in words:
-            word_counts = snippets_by_word[word]
-            print(word_counts)
-            a = np.zeros((H, W), dtype=np.int)
-
-            for info in word_counts[1:]:
-                # print (info)
-                idx = info['idx']
-                bmu = SOM.winner(X[idx])
-                a[bmu[0], bmu[1]] += info['counts']
-
-            # np.savetxt('./images/fp_67/'+word+'.txt', a, fmt='%10.0f')
-            a = self._sparsify_fingerprint(a)
-            self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
-        """
     def _check_existing_word_fp(self, image_dir, words, fraction=None):
         
         if not os.path.exists("./images/"+image_dir):
@@ -282,14 +239,17 @@ class FingerPrint():
         
         return words
                     
-    def _sparsify_fingerprint(self, a):
+    def _sparsify_fingerprint(self, a, sparsity):
         
+        if sparsity == 0:
+            return a
         #hist = np.histogram(a, bins=10, range=None, normed=False, weights=None, density=None)
         hist = np.histogram(a, bins='scott', range=None, normed=False, weights=None, density=None)
         #print (hist[0])
         #print (hist[1])
 
-        sparsify_percentage = 0.02
+        #sparsify_percentage = 0.02
+        sparsify_percentage = sparsity
         if len(a.shape) == 2:
             nvalues = a.shape[0] * a.shape[1]
         elif len(a.shape) == 1:
@@ -310,7 +270,7 @@ class FingerPrint():
         pixels_on_missing = round(maxpixels - pixels_on)
         rev = list(reversed(hist[1]))
 
-        print('filling missing pixels...'+str(pixels_on_missing))
+        #print('filling missing pixels...'+str(pixels_on_missing))
 
         if pixels_on_missing >= 0:
             lower = rev[lower_limit_index + 1]
@@ -343,8 +303,19 @@ class FingerPrint():
             os.makedirs("./images/{}".format(image_dir))
 
         #with open('./images/{}/dict_{}_{}.npy'.format(image_dir, self.opts['id'], self.opts['dataset']), 'wb') as handle:
-        with open('./images/{}/dict_{}.npy'.format(image_dir, self.opts['id']), 'wb') as handle:
-            pickle.dump(fp_dict, handle)
+        filepath = './images/{}/dict_{}.npy'.format(image_dir, self.opts['id'])
+        if (os.path.isfile(filepath) is not False):
+            print ('Appending new words to fingesprints dict...')
+            with open(filepath, 'rb') as handle:
+                fingerprints = pickle.load(handle)
+            fingerprints.update(fp_dict)
+            print ('Writing new dict to file...')
+            with open(filepath, 'wb') as handle:
+                pickle.dump(fingerprints, handle)
+        else:
+            print ('Creating  fingesprints dict...')
+            with open(filepath, 'wb') as handle:
+                pickle.dump(fp_dict, handle)
 
     def _create_fp_image(self, a, word, image_dir):
         
@@ -386,7 +357,7 @@ class FingerPrint():
 
     # TODO: compare pair of words
     @decorate.update_result_log
-    def evaluate(self, evaluation_set, measure):
+    def evaluate(self, evaluation_set, measure, sparsity):
         """Evaluates benchmark word fingerprints using the specified measure.
         
         Attributes
@@ -444,7 +415,7 @@ class FingerPrint():
             df = pd.DataFrame({0: w1_, 1: w2_, 2: score_})
             bunch = Bunch(X=df.values[:, 0:2].astype("object"), y=df.values[:, 2:].astype(np.float))
 
-            A, B = self._get_kmeans_embeddings(bunch, datasetname)
+            A, B = self._get_kmeans_embeddings(bunch, datasetname, sparsity)
             
 
         else:
@@ -488,7 +459,7 @@ class FingerPrint():
         
         return {'score': result, 'percentage': test_percentage}
 
-    def _get_kmeans_embeddings(self, bunch, datasetname):
+    def _get_kmeans_embeddings(self, bunch, datasetname, sparsity):
 
         filepath = './images/fp_{}/dict_{}_{}.npy'.format(self.opts['id'], self.opts['id'], datasetname)
         if (os.path.isfile(filepath) is False):
@@ -501,10 +472,20 @@ class FingerPrint():
             with open(filepath, 'rb') as handle:
                 kmeans_fp = pickle.load(handle)
 
+            for key, value in kmeans_fp.items():
+                kmeans_fp[key] = self._sparsify_fingerprint(value, sparsity)
+                
             A = [kmeans_fp[word] for word in bunch.X[:, 0]]
             B = [kmeans_fp[word] for word in bunch.X[:, 1]]
-            print (A)
-
+        
+        """
+        print (np.count_nonzero(A))
+        print (np.count_nonzero(B))
+        predicted_scores = self._cosine(A, B)
+        print(predicted_scores)
+        result = scipy.stats.spearmanr(predicted_scores, bunch.y).correlation
+        print(result)
+        """
         return A, B
 
     def _get_fingerprint_from_image(self, word, _mode):
