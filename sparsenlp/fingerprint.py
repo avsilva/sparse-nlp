@@ -243,14 +243,11 @@ class FingerPrint():
         #print (hist[0])
         #print (hist[1])
 
-        #sparsify_percentage = 0.02
-        sparsify_percentage = sparsity
         if len(a.shape) == 2:
             nvalues = a.shape[0] * a.shape[1]
         elif len(a.shape) == 1:
             nvalues = a.shape[0]
-        maxpixels = nvalues * sparsify_percentage
-        #print ('maxpixels:', maxpixels)
+        maxpixels = nvalues * sparsity
 
         actual_value = 0
         pixels_on = 0
@@ -266,7 +263,6 @@ class FingerPrint():
         rev = list(reversed(hist[1]))
 
         #print('filling missing pixels...'+str(pixels_on_missing))
-
         if pixels_on_missing >= 0:
             lower = rev[lower_limit_index + 1]
             higher = rev[lower_limit_index + 0]
@@ -287,7 +283,7 @@ class FingerPrint():
         #print ('lower_count: ', lower_count)
 
         sparsify = lambda t: 1 if t > lower_count else 0
-        
+        #sparsify = lambda t: t if t > lower_count else 0
         vfunc = np.vectorize(sparsify)
         b = vfunc(a)
         return b
@@ -387,18 +383,18 @@ class FingerPrint():
         bunch = Bunch(X=df.values[:, 0:2].astype("object"),
                       y=df.values[:, 2:].astype(np.float))
 
-        if (self.opts['algorithm'] == 'KMEANS'):
-
+        if (self.opts['algorithm'] == 'KMEANS' or self.opts['algorithm'] == 'MINISOMBATCH'):
+            
             filepath = './images/fp_{}/dict_{}.npy'.format(self.opts['id'], self.opts['id'])
             if (os.path.isfile(filepath) is not False):
                 with open(filepath, 'rb') as handle:
-                    kmeans_fp = pickle.load(handle)
+                    fingerprints = pickle.load(handle)
 
             w1_ = [] 
             w2_ = [] 
             score_ = [] 
             for a, b, c in zip(w1, w2, score):
-                if (a in kmeans_fp) and (b in kmeans_fp):
+                if (a in fingerprints) and (b in fingerprints):
                     w1_.append(a)
                     w2_.append(b)
                     score_.append(c)
@@ -409,8 +405,8 @@ class FingerPrint():
 
             df = pd.DataFrame({0: w1_, 1: w2_, 2: score_})
             bunch = Bunch(X=df.values[:, 0:2].astype("object"), y=df.values[:, 2:].astype(np.float))
-
-            A, B = self._get_kmeans_embeddings(bunch, datasetname, sparsity)
+            
+            A, B = self._get_embeddings(bunch, datasetname, sparsity, self.opts['algorithm'])
             
 
         else:
@@ -427,25 +423,18 @@ class FingerPrint():
             test_percentage =  round((len(w1_)/len(w1)) * 100, 1)
             if test_percentage == 0:
                 return {'score': 0, 'percentage': test_percentage}
-
-            
             
             df = pd.DataFrame({0: w1_, 1: w2_, 2: score_})
             bunch = Bunch(X=df.values[:, 0:2].astype("object"), y=df.values[:, 2:].astype(np.float))
 
-
             if measure == 'ssim':
                 mode = '2darray'
-                A = [self._get_fingerprint_from_image(word, mode)
-                     for word in bunch.X[:, 0]]
-                B = [self._get_fingerprint_from_image(word, mode)
-                     for word in bunch.X[:, 1]]
+                A = [self._get_fingerprint_from_image(word, mode) for word in bunch.X[:, 0]]
+                B = [self._get_fingerprint_from_image(word, mode) for word in bunch.X[:, 1]]
             else:
                 mode = 'flatten'
-                A = np.vstack(self._get_fingerprint_from_image(word, mode) 
-                              for word in bunch.X[:, 0])
-                B = np.vstack(self._get_fingerprint_from_image(word, mode) 
-                              for word in bunch.X[:, 1])
+                A = np.vstack(self._get_fingerprint_from_image(word, mode) for word in bunch.X[:, 0])
+                B = np.vstack(self._get_fingerprint_from_image(word, mode) for word in bunch.X[:, 1])
 
         measure_fnct = distance_measures[measure]
 
@@ -454,7 +443,7 @@ class FingerPrint():
         
         return {'score': result, 'percentage': test_percentage}
 
-    def _get_kmeans_embeddings(self, bunch, datasetname, sparsity):
+    def _get_embeddings(self, bunch, datasetname, sparsity, mode):
 
         filepath = './images/fp_{}/dict_{}_{}.npy'.format(self.opts['id'], self.opts['id'], datasetname)
         if (os.path.isfile(filepath) is False):
@@ -465,13 +454,21 @@ class FingerPrint():
 
         if (os.path.isfile(filepath) is not False):
             with open(filepath, 'rb') as handle:
-                kmeans_fp = pickle.load(handle)
+                fingerprints = pickle.load(handle)
 
-            for key, value in kmeans_fp.items():
-                kmeans_fp[key] = self._sparsify_fingerprint(value, sparsity)
-                
-            A = [kmeans_fp[word] for word in bunch.X[:, 0]]
-            B = [kmeans_fp[word] for word in bunch.X[:, 1]]
+            #print (fingerprints['car'].flatten())
+            if sparsity != 0:
+                for key, value in fingerprints.items():
+                    fingerprints[key] = self._sparsify_fingerprint(value, sparsity)
+            #print (fingerprints['car'].flatten())
+            
+            if mode == 'MINISOMBATCH':
+                A = [fingerprints[word].flatten() for word in bunch.X[:, 0]]
+                B = [fingerprints[word].flatten() for word in bunch.X[:, 1]]
+
+            elif mode == 'KMEANS':
+                A = [fingerprints[word] for word in bunch.X[:, 0]]
+                B = [fingerprints[word] for word in bunch.X[:, 1]]
         
         """
         print (np.count_nonzero(A))
