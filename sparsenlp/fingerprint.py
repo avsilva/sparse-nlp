@@ -100,12 +100,8 @@ class FingerPrint():
 
         with open('./serializations/X_{}.npz'.format(self.opts['id']), 'rb') as handle:
             X = pickle.load(handle)
-        """
-        if 'sparse' in self.opts and self.opts['sparse'] == False:
-            sparsity = 0
-        else:
-            sparsity = 0.02
-
+        """   
+        sparsity = 0
         word_fingerprint = {} 
         for word in words:
             a = np.zeros(self.opts['size'] * self.opts['size'], dtype=np.int)
@@ -135,6 +131,8 @@ class FingerPrint():
         return idx_vectors
 
     def _create_fp_for_words(self, snippets_by_word, words, idx_vectors, H, W, sparsity):
+
+        word_fingerprint = {} 
         for word in words:
             a = np.zeros((H, W), dtype=np.int)
             word_counts = snippets_by_word[word]
@@ -145,7 +143,9 @@ class FingerPrint():
                 a[bmu[0], bmu[1]] += info['counts']
             print(word)
             a = self._sparsify_fingerprint(a, sparsity)
-            self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
+            #self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
+            word_fingerprint[word] = a
+        self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']))
 
     def _minisom(self, snippets_by_word, words, X, codebook):
         """Creates fingerprints using minisom codebook.
@@ -157,12 +157,7 @@ class FingerPrint():
         words : list
             words for which fingerprint will be created
         """
-
-        if 'sparse' in self.opts and self.opts['sparse'] == False:
-            sparsity = 0
-        else:
-            sparsity = 0.02
-
+        sparsity = 0
         H = int(codebook.shape[0])
         W = int(codebook.shape[1])
         N = X.shape[1]
@@ -203,7 +198,7 @@ class FingerPrint():
             results = compute(*values, scheduler='processes')
             
             idx_vectors = self._tranform_list_to_dict(results)
-            a = np.zeros((H, W), dtype=np.int)
+            #a = np.zeros((H, W), dtype=np.int)
             self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W, sparsity)
             
         elif self.mode == 'multiprocess':
