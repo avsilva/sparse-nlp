@@ -11,8 +11,22 @@ from sparsenlp.fingerprint import FingerPrint
 from sparsenlp.datacleaner import DataCleaner
 from sparsenlp.datasets import Datasets
 import experiments
+import msgpack
+import gc
+from scipy.spatial import distance
+from sklearn.metrics import pairwise_distances
+from scipy.sparse import csr_matrix
+from scipy import sparse
+
+from web.datasets.categorization import fetch_AP, fetch_battig, fetch_BLESS, fetch_ESSLI_1a, fetch_ESSLI_2b, fetch_ESSLI_2c
+from web.datasets.similarity import fetch_MEN, fetch_WS353, fetch_SimLex999, fetch_RW, fetch_multilingual_SimLex999, fetch_RG65, fetch_MTurk
+from web.analogy import *
+from six import iteritems
+from web.embeddings import fetch_GloVe, fetch_FastText, fetch_Mine
+from web.evaluate import evaluate_categorization, evaluate_similarity, evaluate_analogy, evaluate_on_semeval_2012_2
 
 
+# https://www.benfrederickson.com/dont-pickle-your-data/
 # TODO: loop over logs and clean/notclean
 
 def create_fingerprints(opts, snippets_by_word, X, codebook, percentage):
@@ -50,17 +64,48 @@ def clean_files(folder, id):
         except OSError:
             pass
 
-def get_words():
+def get_words(datasets=None):
     words = []
-    datasets = ['EN-WS353', 'EN-RG-65', 'EN-TRUK', 'EN-SIM999']
+    if datasets is None:
+        datasets = ['EN-WS353', 'EN-RG-65', 'EN-TRUK', 'EN-SIM999']
     for d in datasets:
         dataset = Datasets.factory(d)
         distinct_words = dataset.get_data('distinct_words')[d]
         words = list(set(distinct_words)) + words
-    print(len(words))
+    
     words = [w.lower() for w in words]
     words = list(set(words))
+    print('{} distict words in {} datasets'.format(len(words), len(datasets)))
     return words
+
+def load_msgpack_gc(_file):
+    output = open(_file, 'rb')
+
+    # disable garbage collector
+    gc.disable()
+
+    mydict = msgpack.unpack(output)
+
+    # enable garbage collector again
+    gc.enable()
+    output.close()
+    return mydict
+
+def load_pickle_gc(_file):
+    output = open(_file, 'rb')
+    # disable garbage collector
+    #gc.disable()
+    mydict = pickle.load(output)
+    # enable garbage collector again
+    #gc.enable()
+    output.close()
+    return mydict
+
+def gimme_glove(_dim):
+    with open("./embeddings/glove.6B/glove.6B.{}d.txt".format(_dim), encoding='utf-8') as glove_raw:
+        for line in glove_raw.readlines():
+            splitted = line.split(' ')
+            yield splitted[0], np.array(splitted[1:], dtype=np.float)
 
 
 if __name__ == '__main__':
@@ -78,32 +123,321 @@ if __name__ == '__main__':
         datacleaner.explode_dataframe_in_snippets('text', '\n\n+')
         datacleaner.tokenize_pandas_column('text')
         datacleaner.serialize('articles3_AB.bz2', '../wikiextractor/jsonfiles/')
+
+    elif mode == 'calculate_vocab':
+
+        id = 100031
+        filepath = './images/fp_{}/dict_{}.npy'.format(id, id)
+        with open(filepath, 'rb') as handle:
+            kmeans_fp = pickle.load(handle)
+        print ('{} vocab in dict_{}.npy with dimensionality {}'.format(len(list(kmeans_fp.keys())), id, len(kmeans_fp['car'])))
         
+
+        word1 = kmeans_fp['car']
+        word2 = kmeans_fp['automobile']
+        word_sim = 1 - distance.cosine(word1, word2)
+        print('word sim {} '.format(word_sim))
+
+
+        vocabulary = np.asarray(list(kmeans_fp.keys()))
+        
+        index1 = np.where(vocabulary=='car')
+        index2 = np.where(vocabulary=='automobile')
+        #print(vocabulary.index('war'))
+
+        S = csr_matrix(list(kmeans_fp.values()))
+        #sparse.save_npz("./S.npz", S)
+        #your_matrix_back = sparse.load_npz("./S.npz")
+        
+        #print (type(your_matrix_back))
+        #print (your_matrix_back.shape)
+        #print (your_matrix_back[index1])
+        
+        word1 = S[index1]
+        word2 = S[index2]
+        print (word1.shape)
+        #print (word2)
+        word_sim = 1 - distance.cosine(word1.toarray(), word2.toarray())
+        print('word sim {} '.format(word_sim))
+
+
+        D = pairwise_distances(S, word1.reshape(1, -1), metric='cosine')
+        most_similar_words = [vocabulary[id] for id in D.argsort(axis=0).flatten()[0:5]]
+        print(most_similar_words)
+
+
+
+
+        word = kmeans_fp['car']
+        words = ['bangkok is to thailand as havana is to ?']
+
+        vocabulary = np.asarray(list(kmeans_fp.keys()))
+        vectors = np.asarray(list(kmeans_fp.values()))
+        D = pairwise_distances(vectors, word.reshape(1, -1), metric='cosine')
+        #index = D.argsort(axis=0).flatten()[0:3]
+        most_similar_words = [vocabulary[id] for id in D.argsort(axis=0).flatten()[0:5]]
+        print(most_similar_words)
+        sys.exit(0)
+        w_embedding = fetch_Mine(normalize=False, lower=False, clean_words=False)
+
+        # ANALOGY
+        analogy_tasks = {
+            "Google": fetch_google_analogy(),
+            "MSR": fetch_msr_analogy()
+        }
+        analogy_results = {}
+        for name, data in analogy_tasks.items():
+            analogy_results[name] = evaluate_analogy(w_embedding, data.X, data.y)
+            print("Analogy prediction accuracy on {} {}".format(name, analogy_results[name]))
+        analogy_results["SemEval2012_2"] = evaluate_on_semeval_2012_2(w_embedding)['all']
+        print("Analogy prediction accuracy on {} {}".format("SemEval2012", analogy_results["SemEval2012_2"]))
+        
+        # SIMILARITY
+        similarity_results = {}
+        similarity_tasks = {
+            "MEN": fetch_MEN(),    
+            "WS353": fetch_WS353(),
+            "WS353R": fetch_WS353(which="relatedness"),
+            "WS353S": fetch_WS353(which="similarity"),
+            "SimLex999": fetch_SimLex999(),
+            "RW": fetch_RW(),
+            "RG65": fetch_RG65(),
+            "MTurk": fetch_MTurk(),
+            "multilingual_SimLex999": fetch_multilingual_SimLex999()
+        }
+        for name, data in similarity_tasks.items():
+            similarity_results[name] = evaluate_similarity(w_embedding, data.X, data.y)
+            print ("Spearman correlation of scores on {} {}".format(name, similarity_results[name]))
+        
+        # CATEGORIZATION
+        categorization_tasks = {
+                #"AP": fetch_AP(),
+                #"BLESS": fetch_BLESS(),
+                #"Battig": fetch_battig(),
+                "ESSLI_2c": fetch_ESSLI_2c(),
+                "ESSLI_2b": fetch_ESSLI_2b(),
+                "ESSLI_1a": fetch_ESSLI_1a()
+        }
+        categorization_results = {}
+        for name, data in categorization_tasks.items():
+            #print (name, data)
+            categorization_results[name] = evaluate_categorization(w_embedding, data.X, data.y)
+            print("Cluster purity on {} {}".format(name, categorization_results[name]))
+        
+        sys.exit(0)
+        dim = 50
+        glove = {w: x for w, x in gimme_glove(dim)}
+        print ('{} vocab in glove {} with dimensionality {}'.format(len(list(glove.keys())), dim, len(glove['car'])))
+
+        files = ['./snippetsbyword_all_datasets_1234_text_300_0.pkl', './snippetsbyword_all_datasets_1234_text_300_1.pkl',
+            './snippetsbyword_all_datasets_1234_text_300_2.pkl', './snippetsbyword_all_datasets_1234_text_300_3.pkl',
+            './snippetsbyword_all_datasets_1234_text_300_4.pkl', './snippetsbyword_all_datasets_1234_text_300_5.pkl'
+        ]
+
+        vocab = []
+        for file in files:
+            print ('Loading {} '.format(file))
+            mydict = load_pickle_gc(file)
+            vocab += list(mydict.keys())
+            print ('{} vocab in {} '.format(len(list(mydict.keys())), file))
+            del mydict
+        vocab2 = set(vocab)
+        print ('{} vocab in dictionary '.format(len(vocab2)))
+
+    
+    elif mode == 'create_kmeans_fps':
+
+        if len(sys.argv) != 3:
+            print('USAGE: python {} create_kmeans_fps logid'.format(sys.argv[0]))
+            sys.exit(1)
+
+        id = sys.argv[2]
+        percentage = 1
+
+        with open('./logs/log_{}'.format(id), 'r', encoding='utf-8') as handle:
+            datafile = handle.readlines()
+            for x in datafile:
+                log = ast.literal_eval(x)
+        opts = log
+
+        #words = get_words(['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999', 'EN-MEN-LEM'])
+        words = get_words(['EN-RW'])
+        print ('Words {}'.format(len(words)))
+        filepath = './images/fp_{}/dict_{}.npy'.format(id, id)
+        with open(filepath, 'rb') as handle:
+            kmeans_fp = pickle.load(handle)
+        print ('{} vocab in dict_{}.npy with dimensionality {}'.format(len(list(kmeans_fp.keys())), id, len(kmeans_fp['car'])))
+        
+        words2 = []
+        for w in words:
+            if w not in kmeans_fp.keys():
+                words2.append(w)
+        print ('New words to append {}'.format(len(words2)))
+        
+        files = ['./snippetsbyword_all_datasets_1234_text_300_0.pkl', './snippetsbyword_all_datasets_1234_text_300_1.pkl',
+            './snippetsbyword_all_datasets_1234_text_300_2.pkl', './snippetsbyword_all_datasets_1234_text_300_3.pkl',
+            './snippetsbyword_all_datasets_1234_text_300_4.pkl', './snippetsbyword_all_datasets_1234_text_300_5.pkl'
+        ]
+        snippets_by_word = {}
+        for file in files:
+            print ('Loading {} '.format(file))
+            mydict = load_pickle_gc(file)
+            
+            for word in words:
+                #print ('Word id {} '.format(word))
+                try:
+                    snippets_by_word[word] += mydict[word] 
+                except KeyError as e:
+                    try:
+                        snippets_by_word[word] = mydict[word]
+                    except KeyError as e:
+                        pass
+
+            #word_snippets[word] += mydict[word] 
+            del mydict
+
+        print ('Word car appears in {} documents '.format(len(snippets_by_word['car'])))
+        
+
+        opts['new_log'] = False
+        opts['repeat'] = False
+        if experiments.sentecefolder is not None:
+            opts['sentecefolder'] = experiments.sentecefolder
+        #opts['dataset'] = datareference
+
+        vectors = SentenceVect(opts)
+        X = vectors.create_vectors()
+        #snippets_by_word = vectors.create_word_snippets(words)
+
+        mycluster = SentenceCluster(opts)
+        codebook = mycluster.cluster(X)
+
+        engine = experiments.engine
+        fingerprints = FingerPrint(opts, engine)
+        fingerprints.create_fingerprints(snippets_by_word, X, codebook, fraction=percentage)
+    
+    elif mode == 'read_chunks':
+        
+        file = './snippetsbyword_all_datasets_1234_text_300_0.msgpack'
+        #file = './snippetsbyword_all_datasets_1234_text_300_0.pkl'
+        #files = ['./snippetsbyword_all_datasets_1234_text_300_0.msgpack', './snippetsbyword_all_datasets_1234_text_300_1.msgpack']
+        files = ['./snippetsbyword_all_datasets_1234_text_300_0.pkl', './snippetsbyword_all_datasets_1234_text_300_1.pkl']
+        
+        
+        #mydict = load_pickle_gc(file)
+        #mydict = load_msgpack_gc(file)
+        #print (type(mydict))
+        word = 'car'
+        word_snippets = {}
+        word_snippets[word] = []
+        for file in files:
+            mydict = load_pickle_gc(file)
+            #mydict = load_msgpack_gc(file)
+            print (len(mydict[word]))
+            word_snippets[word] += mydict[word] 
+            del mydict
+        print (len(word_snippets[word]))
+    
+    elif mode == 'create_chunks':
+        
+        datacleaner = DataCleaner()
+        paragraph_length = 300
+        column = 'text'
+        with open('./counter_all_datasets_1234_text_{}.pkl'.format(paragraph_length), 'rb') as f:
+            counter = pickle.load(f)
+        
+        rows = len(counter)
+        print(rows)
+        chunksize = 200000
+        num_chunks = (rows + chunksize - 1) // chunksize
+        print (num_chunks)
+        
+        """
+        chunk = int(sys.argv[2])
+        print(chunk)
+        if chunk != 0:
+            init = (chunk*chunksize)+1
+            final = (chunk+1)*chunksize
+            print(init, final)
+        else:
+            init = chunk*chunksize
+            final = (chunk+1)*chunksize
+        print(init, final)
+        
+        counter1 = counter[init:final]
+        snippets_by_word = datacleaner.get_word_snippets2(counter1)
+        
+        with open('./snippetsbyword_all_datasets_1234_{}_{}_{}.msgpack'.format(column, paragraph_length, chunk), 'wb') as f:
+            msgpack.pack(snippets_by_word, f)
+        """
+   
+        for i in range(num_chunks): 
+            if i != 0:
+                init = (i*chunksize)+1
+                final = (i+1)*chunksize
+                print(init, final)
+            else:
+                init = i*chunksize
+                final = (i+1)*chunksize
+            print(init, final)
+            counter1 = counter[init:final]
+            snippets_by_word = datacleaner.get_word_snippets2(counter1)
+            del counter1
+            #with open('./snippetsbyword_all_datasets_1234_{}_{}_{}.msgpack'.format(column, paragraph_length, i), 'wb') as f:
+            #    msgpack.pack(snippets_by_word, f)
+            with open('./snippetsbyword_all_datasets_1234_{}_{}_{}.pkl'.format(column, paragraph_length, i), 'wb') as f:
+                pickle.dump(snippets_by_word, f)
+            del snippets_by_word
+        
+        
+        #counter = counter[:200000]
+        print (type(counter))
+        print (len(counter))
+        print (counter[5])
+        #snippets_by_word = datacleaner.get_word_snippets(words, counter)
+        
+        #snippets_by_word = datacleaner.get_word_snippets2(counter)
+        #with open('./snippetsbyword_all_datasets_1234_{}_{}.pkl'.format(column, paragraph_length), 'wb') as f:
+            #pickle.dump(snippets_by_word, f)
+        
+    
+    elif mode == 'create_counter':
+        paragraph_length = 300
+        column = 'text'
+        
+        dataframe = pd.read_pickle('./dataframe_1234_text_{}.pkl'.format(paragraph_length), compression='bz2')
+        datacleaner = DataCleaner()
+        counter = datacleaner.get_counter(dataframe, column)
+        with open('./counter_all_datasets_1234_text_{}.pkl'.format(paragraph_length), 'wb') as f:
+            pickle.dump(counter, f)
+    
     elif mode == 'create_word_snippets':
-        paragraph_length = 200
+        paragraph_length = 300
+        dataextensions = '3,4,5'
         column = 'text'
         datacleaner = DataCleaner()
-        opts = {'id': 0, 'paragraph_length': paragraph_length, 'dataextension': '3,4'}
+        opts = {'id': 0, 'paragraph_length': paragraph_length, 'dataextension': dataextensions}
+        
+        """
+        if os.path.isfile('./dataframe_1234_{}.pkl'.format(paragraph_length)):
+            dataframe = pd.read_pickle('./dataframe_1234_{}.pkl'.format(paragraph_length), compression='bz2')
+        else:
+            vectors = SentenceVect(opts)
+            dataframe = vectors._read_serialized_sentences_text()
+            dataframe = dataframe[['text']]
+            dataframe.to_pickle('./dataframe_1234_{}.pkl'.format(paragraph_length), compression='bz2')
+        """
+        
         vectors = SentenceVect(opts)
         dataframe = vectors._read_serialized_sentences_text()
-        #if os.path.isfile('C:/AVS/dataframe.pkl'):
-        #    dataframe = pd.read_pickle('C:/AVS/dataframe.pkl')
-        #dataframe = dataframe[:100000]
-
-        print(dataframe.shape)
-        #print(dataframe['text'][100])
+        dataframe = dataframe[['text']]
         dataframe = datacleaner.tokenize_text(dataframe, column)
-        counter = datacleaner.get_counter(dataframe, column)
-
-        #with open('C:/AVS/counter_all_datasets_1234_{}_{}.pkl'.format(column, paragraph_length), 'wb') as f:
-        #    pickle.dump(counter, f)
-
-        words = get_words()
-        #snippets_by_word = datacleaner.get_word_snippets(words, counter)
-        snippets_by_word = datacleaner.get_word_snippets2(counter)
+        print(dataframe.shape)
+        print(dataframe.columns)
+        print(dataframe['text'][100])
+        ext = '12'+str(dataextensions.replace(',', ''))
+        dataframe.to_pickle('./dataframe_{}_text_{}.pkl'.format(ext, paragraph_length), compression='bz2')
         
-        with open('C:/AVS/snippetsbyword_all_datasets_1234_{}_{}.pkl'.format(column, paragraph_length), 'wb') as f:
-            pickle.dump(snippets_by_word, f)
     
     elif mode == 'create_fps2':
 
@@ -178,11 +512,12 @@ if __name__ == '__main__':
 
     elif mode == 'evaluate':
 
-        if len(sys.argv) != 3:
-            print('USAGE: python {} evaluate log'.format(sys.argv[0]))
+        if len(sys.argv) != 4:
+            print('USAGE: python {} evaluate logid sparsity'.format(sys.argv[0]))
             sys.exit(1)
 
         id = sys.argv[2]
+        sparsity = float(sys.argv[3])
         with open('./logs/log_{}'.format(id), 'r', encoding='utf-8') as handle:
             datafile = handle.readlines()
             for x in datafile:
@@ -192,8 +527,8 @@ if __name__ == '__main__':
 
         fingerprints = FingerPrint(opts)
 
-        #datasets = ['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999']
-        datasets = ['EN-WS353']
+        #datasets = ['EN-RG-65', 'EN-WS353', 'EN-WSR353R', 'EN-WSS353S', 'EN-TRUK', 'EN-SIM999', 'EN-MEN-LEM', 'EN-RW']
+        datasets = ['EN-RG-65']
         
         metrics = ['cosine']
         #metrics = ['cosine', 'euclidean', 'similarbits', 'structutal similarity', 'earth movers distance']
@@ -205,16 +540,21 @@ if __name__ == '__main__':
             
             evaluation_data = testdata.get_data('data')
             #print (evaluation_data)
-            a = evaluation_data['EN-WS353'][0][:39]
-            b = evaluation_data['EN-WS353'][1][:39]
-            c = evaluation_data['EN-WS353'][2][:39]
+            """
+            d = datasets[0]
+            start = 2
+            limit = 6
+            a = evaluation_data[d][0][start:limit]
+            b = evaluation_data[d][1][start:limit]
+            c = evaluation_data[d][2][start:limit]
             print(a)
             print(b)
-            
-            evaluation_data = {'EN-WS353': [a, b, c]}
+            print(c)
+            evaluation_data = {d: [a, b, c]}
+            """
             
             for metric in metrics:
-                result = fingerprints.evaluate(evaluation_data, metric)
+                result = fingerprints.evaluate(evaluation_data, metric, sparsity)
                 print (result)
                 if result['score'] > best:
                     #best_scores['dataset'] = [metric.upper(), result['score'], str(result['percentage']) + ' %']
@@ -249,12 +589,12 @@ if __name__ == '__main__':
 
     elif mode == 'cluster_fps':
 
-        if len(sys.argv) != 5:
-            print('USAGE: python {} logid evaluate datareference percentage'.format(sys.argv[0]))
+        if len(sys.argv) != 3:
+            print('USAGE: python {} logid'.format(sys.argv[0]))
             sys.exit(1)
         id = sys.argv[2]
-        datareference = sys.argv[3]
-        percentage = sys.argv[4]
+        datareference = 'EN-RG-65'
+        percentage = 1
         
         for log in experiments.opts:
             if log['id'] == int(id):
@@ -342,6 +682,7 @@ if __name__ == '__main__':
 
 # python sparsenlp.py cluster_fps 101 EN-RG-65 1
 # python sparsenlp.py cluster_fps 101 EN-WS353 1
+# python sparsenlp.py cluster_fps_all
 
 # python -W ignore sparsenlp.py evaluate 3
 
