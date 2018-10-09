@@ -534,15 +534,15 @@ if __name__ == '__main__':
         opts['dataset'] = datareference
 
         vectors = SentenceVect(opts)
-        #X = vectors.create_vectors()
+        X = vectors.create_vectors()
         snippets_by_word = vectors.create_word_snippets(words)
 
         mycluster = SentenceCluster(opts)
-        codebook = mycluster.cluster(None)
+        codebook = mycluster.cluster(X)
 
         engine = experiments.engine
         fingerprints = FingerPrint(opts, engine)
-        fingerprints.create_fingerprints(snippets_by_word, X, codebook, None)
+        fingerprints.create_fingerprints(snippets_by_word, X, codebook, sparsity)
         
 
     elif mode == 'evaluate':
@@ -711,10 +711,8 @@ if __name__ == '__main__':
     print('time elapsed: {}'.format(time2 - time1))
 
 # python -W ignore sparsenlp.py cluster 201
-# python -W ignore sparsenlp.py create_fps 106 EN-RG-65 1
+# python -W ignore sparsenlp.py create_fps 2001 EN-RG-65
 # python -W ignore sparsenlp.py create_fps2 100031 snippetsbyword_all_datasets_1234_text_300.pkl
-# python sparsenlp.py cluster_fps 101 EN-RG-65 1
-# python sparsenlp.py cluster_fps 101 EN-WS353 1
 # python sparsenlp.py cluster_fps_all
 # python -W ignore sparsenlp.py evaluate 3
 # python sparsenlp.py clean 999 EN-RG-65
