@@ -443,11 +443,16 @@ if __name__ == '__main__':
         paragraph_length = 300
         dataextensions = '12345'
         column = 'text'
+
+        if experiments.sentecefolder is not None:
+            basefolder = experiments.sentecefolder
+        else:
+            basefolder = './'
         
-        dataframe = pd.read_pickle('./dataframe_{}_text_{}.pkl'.format(dataextensions, paragraph_length), compression='bz2')
+        dataframe = pd.read_pickle('{}dataframe_{}_text_{}.pkl'.format(basefolder, dataextensions, paragraph_length), compression='bz2')
         datacleaner = DataCleaner()
         counter = datacleaner.get_counter(dataframe, column)
-        with open('./counter_all_datasets_{}_text_{}.pkl'.format(dataextensions, paragraph_length), 'wb') as f:
+        with open('{}counter_all_datasets_{}_text_{}.pkl'.format(basefolder, dataextensions, paragraph_length), 'wb') as f:
             pickle.dump(counter, f)
     
     elif mode == 'create_dataframe_snippets':
