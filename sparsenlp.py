@@ -407,7 +407,12 @@ if __name__ == '__main__':
         paragraph_length = 300
         dataextensions = '12345'
         column = 'text'
-        with open('./counter_all_datasets_{}_text_{}.pkl'.format(dataextensions, paragraph_length), 'rb') as f:
+
+        if experiments.sentecefolder is not None:
+            basefolder = experiments.sentecefolder
+        else:
+            basefolder = './'
+        with open('{}counter_all_datasets_{}_text_{}.pkl'.format(basefolder, dataextensions, paragraph_length), 'rb') as f:
             counter = pickle.load(f)
         
         rows = len(counter)
@@ -430,7 +435,7 @@ if __name__ == '__main__':
             del counter1
             #with open('./snippetsbyword_all_datasets_1234_{}_{}_{}.msgpack'.format(column, paragraph_length, i), 'wb') as f:
             #    msgpack.pack(snippets_by_word, f)
-            with open('./snippetsbyword_all_datasets_{}_{}_{}_{}.pkl'.format(dataextensions, column, paragraph_length, i), 'wb') as f:
+            with open('{}snippetsbyword_all_datasets_{}_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length, i), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
             del snippets_by_word
         
