@@ -456,6 +456,8 @@ if __name__ == '__main__':
         column = 'text'
         datacleaner = DataCleaner()
         opts = {'id': 0, 'paragraph_length': paragraph_length, 'dataextension': dataextensions}
+        if experiments.sentecefolder is not None:
+            opts['sentecefolder'] = experiments.sentecefolder
         
         vectors = SentenceVect(opts)
         dataframe = vectors._read_serialized_sentences_text()
@@ -465,7 +467,11 @@ if __name__ == '__main__':
         print(dataframe.columns)
         print(dataframe['text'][100])
         ext = '12'+str(dataextensions.replace(',', ''))
-        dataframe.to_pickle('./dataframe_{}_text_{}.pkl'.format(ext, paragraph_length), compression='bz2')
+        if experiments.sentecefolder is not None:
+            dataframe.to_pickle('{}dataframe_{}_text_{}.pkl'.format(experiments.sentecefolder, ext, paragraph_length), compression='bz2')
+        else:
+            dataframe.to_pickle('./dataframe_{}_text_{}.pkl'.format(ext, paragraph_length), compression='bz2')
+
         
     
     elif mode == 'create_fps2':
