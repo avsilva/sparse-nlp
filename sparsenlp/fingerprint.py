@@ -16,6 +16,7 @@ except:
 
 from scipy.stats import wasserstein_distance
 from scipy.spatial import distance
+from scipy.sparse import csr_matrix
 import scipy
 from minisom import MiniSom
 import utils.decorators as decorate
@@ -60,7 +61,7 @@ class FingerPrint():
                       'MINISOMRANDOM': self._minisom}
     
     @decorate.elapsedtime_log
-    def create_fingerprints(self, snippets_by_word=None, X=None, codebook=None, words=None, fraction=None):
+    def create_fingerprints(self, snippets_by_word=None, X=None, codebook=None, sparsity=None):
         """Creates fingerprint for each word.
         
         Attributes
@@ -71,18 +72,28 @@ class FingerPrint():
             words for which fingerprint will be created
         """
 
+        if sparsity is None:
+            raise ValueError ("Sparsity cannot be None")
+
+        if self.opts['algorithm'] == 'MINISOMBATCH' and X is None:
+            raise ValueError ("X cannot be None when using MINISOMBATCH")
+        elif self.opts['algorithm'] == 'KMEANS' and X is not None:
+            raise ValueError ("X must be None when using KMEANS")
+
+        """
         if isinstance(words, str):
             words = words.split(',')
         elif words is None:
             words = list(snippets_by_word.keys())
-
         words = self._check_existing_word_fp('fp_{}'.format(self.opts['id']), words, float(fraction))
+        """
+        words = list(snippets_by_word.keys())
         print ('Creating SDR for {} words'.format(len(words)))
-        self.algos[self.opts['algorithm']](snippets_by_word, words, X, codebook)
+        self.algos[self.opts['algorithm']](snippets_by_word, words, X, codebook, sparsity)
 
         return True
 
-    def _kmeans(self, snippets_by_word, words, X, codebook):
+    def _kmeans(self, snippets_by_word, words, X, codebook, sparsity):
         """Creates fingerprints using kmeans codebook.
         
         Attributes
@@ -93,15 +104,6 @@ class FingerPrint():
             words for which fingerprint will be created
         """
         
-        """
-        with open('./serializations/codebook_{}.npy'.format(self.opts['id']), 'rb') as handle:
-            codebook = pickle.load(handle)
-        
-
-        with open('./serializations/X_{}.npz'.format(self.opts['id']), 'rb') as handle:
-            X = pickle.load(handle)
-        """   
-        sparsity = 0
         word_fingerprint = {} 
         for word in words:
             a = np.zeros(self.opts['size'] * self.opts['size'], dtype=np.int)
@@ -111,11 +113,15 @@ class FingerPrint():
                 # print (info)
                 idx = info['idx']
                 a[codebook[idx]] += info['counts']
+            del word_counts
             #print (word)
             a = self._sparsify_fingerprint(a, sparsity)
             word_fingerprint[word] = a
+            del a
+        #print (word_fingerprint)
         
         self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']))
+        del word_fingerprint
 
     def _get_unique_word_vectors(self, unique_indexes, X):
         unique_word_vectors = []
@@ -147,7 +153,7 @@ class FingerPrint():
             word_fingerprint[word] = a
         self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']))
 
-    def _minisom(self, snippets_by_word, words, X, codebook):
+    def _minisom(self, snippets_by_word, words, X, codebook, sparsity):
         """Creates fingerprints using minisom codebook.
         
         Attributes
@@ -157,7 +163,7 @@ class FingerPrint():
         words : list
             words for which fingerprint will be created
         """
-        sparsity = 0
+        
         H = int(codebook.shape[0])
         W = int(codebook.shape[1])
         N = X.shape[1]
@@ -167,9 +173,6 @@ class FingerPrint():
 
         unique_indexes = set()
         word_vectors = []
-        #print (words)
-        #words = ['cock', 'rooster']
-        
         for word in words:
             a = []
             word_counts = snippets_by_word[word]
@@ -207,11 +210,14 @@ class FingerPrint():
             with mp.Pool(processes=num_processes, initializer=init_worker, initargs=(H, W, N, codebook)) as pool:
                 results = pool.map(create_fp, word_vectors)
                 
+                word_fingerprint = {} 
                 for fingerprint in results:
                 
                     for key, value in fingerprint.items():
                         a = self._sparsify_fingerprint(value, sparsity)
-                        self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
+                        #self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
+                        word_fingerprint[key] = a
+            self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']))
        
     def _check_existing_word_fp(self, image_dir, words, fraction=None):
         
@@ -293,7 +299,12 @@ class FingerPrint():
         if not os.path.exists("./images/{}".format(image_dir)):
             os.makedirs("./images/{}".format(image_dir))
 
-        #with open('./images/{}/dict_{}_{}.npy'.format(image_dir, self.opts['id'], self.opts['dataset']), 'wb') as handle:
+        filepath = './images/{}/keys_{}.npy'.format(image_dir, self.opts['id'])
+        with open(filepath, 'wb') as handle:
+            pickle.dump(list(fp_dict.keys()), handle)
+        csr = csr_matrix(list(fp_dict.values()))
+        scipy.sparse.save_npz('./images/{}/csr_{}.npz'.format(image_dir, self.opts['id']), csr)
+        
         filepath = './images/{}/dict_{}.npy'.format(image_dir, self.opts['id'])
         if (os.path.isfile(filepath) is not False):
             print ('Appending new words to fingesprints dict...')

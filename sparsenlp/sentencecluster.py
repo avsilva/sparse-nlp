@@ -10,7 +10,6 @@ import utils.database as db
 import utils.decorators as decorate
 from sklearn.cluster import KMeans, MiniBatchKMeans, AgglomerativeClustering, Birch, DBSCAN
 
-
 class SentenceCluster():
     """Initializes an instance of sentences obtained from wikipedia pre-processed paragraphs.
 
@@ -93,6 +92,12 @@ class SentenceCluster():
 
         if 'repeat' in self.opts and self.opts['repeat'] is True:
             same_codebook = []
+
+        if len(same_codebook) > 0:
+            log_id = min(same_codebook)
+            filepath = '{}codebook_{}.npy'.format(self.path, log_id)
+            if (os.path.isfile(filepath) is False):
+                same_codebook = []
         
         if len(same_codebook) > 0:
             log_id = min(same_codebook)
@@ -102,6 +107,8 @@ class SentenceCluster():
         
         else:
             print('Creating new codebook: id {}'.format(self.opts['id']))
+            if X is None:
+                raise TypeError ("X cannot be None")
             self.X = X
             # dict self.algos contains mapping of algorithm to clustering method
             codebook = self.algos[self.opts['algorithm']]()

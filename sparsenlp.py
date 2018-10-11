@@ -138,10 +138,11 @@ if __name__ == '__main__':
     elif mode == 'calculate_freqs':
 
         paragraph_length = 300
+        dataextensions = '1234'
         column = 'text'
         stopWords = set(stopwords.words('english'))
-
         
+
         counts_by_word = {}
         counter = collections.Counter()
         
@@ -171,8 +172,12 @@ if __name__ == '__main__':
             del mydict
         print (counts_by_word['car'])
         print (counter.most_common(10))
-        with open('./serializations2/vocabulary_1234_{}_{}.pkl'.format(column, paragraph_length), 'wb') as f:
+        with open('./serializations2/vocabulary_{}_{}_{}.pkl'.format(dataextensions, column, paragraph_length), 'wb') as f:
             pickle.dump(counter, f)
+
+        del counter['idx']
+        wordcounts =  list(counter.values())
+        print('There are {} words not considering stop words'.format(sum(wordcounts)))
     
     elif mode == 'csr_matrix':
 
