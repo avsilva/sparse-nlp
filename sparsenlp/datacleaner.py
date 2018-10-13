@@ -3,6 +3,7 @@ import sys
 import errno
 import re
 import json
+import datetime
 import pandas as pd
 import numpy as np
 import concurrent.futures
@@ -15,6 +16,8 @@ from nltk.corpus import stopwords
 from nltk.tokenize import RegexpTokenizer
 from utils.corpora import clean_text as tokenizer
 from nltk.tokenize import RegexpTokenizer
+from nltk.stem import WordNetLemmatizer
+from nltk.stem.porter import *
 
 tokenizer = RegexpTokenizer(r'\w+')
 
@@ -56,16 +59,49 @@ class DataCleaner():
 
     def get_counter(self, dataframe, column):
         counter = []
+        lemmatizer = WordNetLemmatizer()
+        stemmer = PorterStemmer()
+        print(dataframe.shape)
+        
+        """
+        print(column)
+        print(stemmer.stem('dogs'))
+        print(lemmatizer.lemmatize('dogs'))
+
+        plurals = ['automobile', 'flies', 'dies', 'car', 'cars', 'denied', 'window', 'war', 'wars']
+        word = [stemmer.stem(plural) for plural in plurals]
+        print(word)
+
+        word = [lemmatizer.lemmatize(plural) for plural in plurals]
+        print(word)
+        """
+        time1 = datetime.datetime.now()
         for index, row in dataframe.iterrows():
             cnt = collections.Counter()
             cnt['idx'] = index
             tokens = row[column]
+            #print (tokens)
+            #stems = [stemmer.stem(token) for token in tokens]
+            lemas = [lemmatizer.lemmatize(token) for token in tokens]
+            #print (stems)
+            
+            #for w in tokens:
+            #    cnt[w] += 1
+            #counter.append(cnt)
+            tokens = list(set(tokens))
+
             for w in tokens:
-                cnt[w] += 1
+                lema = lemmatizer.lemmatize(w)
+                count_lemmas_in_doc = lemas.count(lema)
+                cnt[w] += count_lemmas_in_doc
             counter.append(cnt)
 
-            if int(index) % 50000 == 0:
+            if int(index) % 50000 == 0 and index != 0:
                 print('index {}'.format(index))
+                #print('counter len = {}'.format(len(counter)))
+                time2 = datetime.datetime.now()
+                print('time elapsed: {}'.format(time2 - time1))
+                time1 = datetime.datetime.now()
         
         return counter
 
