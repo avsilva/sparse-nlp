@@ -164,6 +164,8 @@ class SentenceVect():
 
         return dataframe['train']
     """
+
+    #TODO: bug fix: if word appears more then 1 time in doc only last counts are recorded (see line 182)
     def _get_snippets_and_counts(self, _dataframe, _word):
         
         snippets_and_counts = {}

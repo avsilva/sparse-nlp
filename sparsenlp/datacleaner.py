@@ -57,24 +57,24 @@ class DataCleaner():
 
         return dataframe
 
-    def get_counter(self, dataframe, column):
+    def get_counter_as_is(self, dataframe, column):
+        counter = []
+        for index, row in dataframe.iterrows():
+            cnt = collections.Counter()
+            cnt['idx'] = index
+            tokens = row[column]
+            for w in tokens:
+                cnt[w] += 1
+            counter.append(cnt)
+
+            if int(index) % 50000 == 0 and index != 0:
+                print('index {}'.format(index))
+
+    def get_counter_lemmas(self, dataframe, column):
         counter = []
         lemmatizer = WordNetLemmatizer()
         stemmer = PorterStemmer()
-        print(dataframe.shape)
         
-        """
-        print(column)
-        print(stemmer.stem('dogs'))
-        print(lemmatizer.lemmatize('dogs'))
-
-        plurals = ['automobile', 'flies', 'dies', 'car', 'cars', 'denied', 'window', 'war', 'wars']
-        word = [stemmer.stem(plural) for plural in plurals]
-        print(word)
-
-        word = [lemmatizer.lemmatize(plural) for plural in plurals]
-        print(word)
-        """
         time1 = datetime.datetime.now()
         for index, row in dataframe.iterrows():
             cnt = collections.Counter()
@@ -84,12 +84,7 @@ class DataCleaner():
             #stems = [stemmer.stem(token) for token in tokens]
             lemas = [lemmatizer.lemmatize(token) for token in tokens]
             #print (stems)
-            
-            #for w in tokens:
-            #    cnt[w] += 1
-            #counter.append(cnt)
             tokens = list(set(tokens))
-
             for w in tokens:
                 lema = lemmatizer.lemmatize(w)
                 count_lemmas_in_doc = lemas.count(lema)
@@ -98,7 +93,6 @@ class DataCleaner():
 
             if int(index) % 50000 == 0 and index != 0:
                 print('index {}'.format(index))
-                #print('counter len = {}'.format(len(counter)))
                 time2 = datetime.datetime.now()
                 print('time elapsed: {}'.format(time2 - time1))
                 time1 = datetime.datetime.now()

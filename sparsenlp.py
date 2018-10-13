@@ -117,13 +117,13 @@ def check_args(log):
 
 
 FILES = [
-            './serializations2/snippetsbyword_all_datasets_12345_text_300_0.pkl', 
-            './serializations2/snippetsbyword_all_datasets_12345_text_300_1.pkl',
-            './serializations2/snippetsbyword_all_datasets_12345_text_300_2.pkl', 
-            './serializations2/snippetsbyword_all_datasets_12345_text_300_3.pkl',
-            './serializations2/snippetsbyword_all_datasets_12345_text_300_4.pkl', 
-            './serializations2/snippetsbyword_all_datasets_12345_text_300_5.pkl',
-            './serializations2/snippetsbyword_all_datasets_12345_text_300_6.pkl'
+            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_0.pkl', 
+            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_1.pkl',
+            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_2.pkl', 
+            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_3.pkl',
+            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_4.pkl', 
+            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_5.pkl',
+            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_6.pkl'
         ]
 
 MANDATORY = ['id', 'initialization', 'minibatch', 'verbose', 'n_components', 'size', 
@@ -273,13 +273,13 @@ if __name__ == '__main__':
         similarity_results = {}
         similarity_tasks = {
             "RG65": fetch_RG65(),
-            #"MEN": fetch_MEN(),    
-            #"WS353": fetch_WS353(),
-            #"WS353R": fetch_WS353(which="relatedness"),
-            #"WS353S": fetch_WS353(which="similarity"),
-            #"SimLex999": fetch_SimLex999(),
-            #"RW": fetch_RW(),
-            #"MTurk": fetch_MTurk(),
+            "MEN": fetch_MEN(),    
+            "WS353": fetch_WS353(),
+            "WS353R": fetch_WS353(which="relatedness"),
+            "WS353S": fetch_WS353(which="similarity"),
+            "SimLex999": fetch_SimLex999(),
+            "RW": fetch_RW(),
+            "MTurk": fetch_MTurk(),
             #"multilingual_SimLex999": fetch_multilingual_SimLex999()
         }
         for name, data in similarity_tasks.items():
@@ -341,9 +341,6 @@ if __name__ == '__main__':
         snippets_by_word = vectors.create_word_snippets(words)
         #create_fingerprints(log, snippets_by_word, X, codebook, sparsity)
 
-
-
-
         with open('./snippetsbyword_rg65_dataset_12345_text_300.pkl', 'rb') as f:
             snippets = pickle.load(f)
         car_counts = 0
@@ -380,8 +377,8 @@ if __name__ == '__main__':
 
         #id = 100031
         id = sys.argv[2]
-        sparsity = sys.argv[3]
-        sparsity = 0.02
+        sparsity = float(sys.argv[3])
+
         paragraph_length = 300
         dataextensions = '12345'
         column = 'text'
@@ -391,7 +388,7 @@ if __name__ == '__main__':
             for x in datafile:
                 log = ast.literal_eval(x)
         opts = log
-        """
+
         mode = 'datatsets'
         top = 10000
         if mode == 'most_common':
@@ -404,8 +401,8 @@ if __name__ == '__main__':
                 del words[i]
         
         elif mode == 'datatsets':
-            #words = get_words(['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999', 'EN-MEN-LEM'])
-            words = get_words(['EN-RG-65'])
+            words = get_words(['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999', 'EN-MEN-LEM'])
+            #words = get_words(['EN-RG-65'])
             print ('Words {}'.format(len(words)))
         
         mode2 = ''
@@ -443,12 +440,12 @@ if __name__ == '__main__':
             #word_snippets[word] += mydict[word] 
             del mydict
 
-        with open('./snippetsbyword_rg65_dataset_12345_text_300.pkl', 'wb') as f:
-            pickle.dump(snippets_by_word, f)
+        #with open('./snippetsbyword_rg65_dataset_12345_text_300.pkl', 'wb') as f:
+        #    pickle.dump(snippets_by_word, f)
         #print ('Word car appears in {} documents '.format(len(snippets_by_word['car'])))
-        """
-        with open('./serializations/snippets_by_word_300005_EN-RG-65.pkl', 'rb') as f:
-            snippets_by_word = pickle.load(f)
+        
+        #with open('./serializations/snippets_by_word_300005_EN-RG-65.pkl', 'rb') as f:
+        #    snippets_by_word = pickle.load(f)
 
         opts['new_log'] = False
         opts['repeat'] = False
@@ -490,7 +487,7 @@ if __name__ == '__main__':
             basefolder = experiments.sentecefolder
         else:
             basefolder = './'
-        with open('{}counter_all_datasets_{}_text_{}.pkl'.format(basefolder, dataextensions, paragraph_length), 'rb') as f:
+        with open('{}counter_all_datasets_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), 'rb') as f:
             counter = pickle.load(f)
         
         rows = len(counter)
@@ -516,11 +513,6 @@ if __name__ == '__main__':
             with open('{}snippetsbyword_all_datasets_{}_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length, i), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
             del snippets_by_word
-        
-        #counter = counter[:200000]
-        print (type(counter))
-        print (len(counter))
-        print (counter[5])
     
     elif mode == 'create_counter':
         paragraph_length = 300
@@ -532,10 +524,11 @@ if __name__ == '__main__':
         else:
             basefolder = './'
         
-        dataframe = pd.read_pickle('{}dataframe_{}_text_{}.pkl'.format(basefolder, dataextensions, paragraph_length), compression='bz2')
+        dataframe = pd.read_pickle('{}dataframe_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), compression='bz2')
         datacleaner = DataCleaner()
-        counter = datacleaner.get_counter(dataframe, column)
-        with open('{}counter_all_datasets_{}_text_{}.pkl'.format(basefolder, dataextensions, paragraph_length), 'wb') as f:
+        counter = datacleaner.get_counter_as_is(dataframe, column)
+        #counter = datacleaner.get_counter_lemmas(dataframe, column)
+        with open('{}counter_all_datasets_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), 'wb') as f:
             pickle.dump(counter, f)
     
     elif mode == 'create_dataframe_snippets':
@@ -549,16 +542,14 @@ if __name__ == '__main__':
         
         vectors = SentenceVect(opts)
         dataframe = vectors._read_serialized_sentences_text()
-        dataframe = dataframe[['text']]
+        dataframe = dataframe[[column]]
         dataframe = datacleaner.tokenize_text(dataframe, column)
-        print(dataframe.shape)
-        print(dataframe.columns)
-        print(dataframe['text'][100])
+        
         ext = '12'+str(dataextensions.replace(',', ''))
         if experiments.sentecefolder is not None:
-            dataframe.to_pickle('{}dataframe_{}_text_{}.pkl'.format(experiments.sentecefolder, ext, paragraph_length), compression='bz2')
+            dataframe.to_pickle('{}dataframe_{}_{}_{}.pkl'.format(experiments.sentecefolder, ext, column, paragraph_length), compression='bz2')
         else:
-            dataframe.to_pickle('./dataframe_{}_text_{}.pkl'.format(ext, paragraph_length), compression='bz2')
+            dataframe.to_pickle('./dataframe_{}_{}_{}.pkl'.format(ext, column, paragraph_length), compression='bz2')
 
         
     
