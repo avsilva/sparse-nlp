@@ -137,9 +137,10 @@ class SentenceVect():
                 self.X = pickle.load(handle)
         else:
             print ('Creating new vector representation: id {}'.format(self.opts['id']))
-
+            
             sentences = self._read_serialized_sentences_text()            
-    
+            print('final sentences shape {}'.format(sentences.shape))
+
             if 'token' not in self.opts:
                 self.opts['token'] = 'cleaned_text'
 
@@ -198,7 +199,7 @@ class SentenceVect():
             #self.sentences = pd.read_pickle('{}{}.bz2'.format('{}sentences/'.format(self.path), self.opts['paragraph_length']), 
             path = '{}sentences/{}.bz2'.format(self.path, self.opts['paragraph_length'])
             self.sentences = pd.read_pickle(path, compression="bz2")
-            print (self.sentences.shape)
+            #print (self.sentences.shape)
             if 'dataextension' in self.opts and self.opts['dataextension'] != '':
                 extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
                 self.sentences = self.sentences.append(extension_sentences, ignore_index=True)
@@ -223,7 +224,7 @@ class SentenceVect():
                 df_sentences = pd.read_pickle('{}sentences/articles{}/{}'.format(
                                                 self.path, ext, file), compression="bz2")
                 new_sentences_df = new_sentences_df.append(df_sentences)
-                print (new_sentences_df.shape)
+                #print (new_sentences_df.shape)
         #new_sentences_df.query('text_length_tokenized > {}'.format(self.opts['paragraph_length']), inplace=True)
         #new_sentences_df = new_sentences_df[['id', 'tokenized']]
         #new_sentences_df = new_sentences_df.rename(index=str, columns={"tokenized": "cleaned_text"})

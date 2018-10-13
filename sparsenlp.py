@@ -117,12 +117,13 @@ def check_args(log):
 
 
 FILES = [
-            './serializations2/snippetsbyword_all_datasets_1234_text_300_0.pkl', 
-            './serializations2/snippetsbyword_all_datasets_1234_text_300_1.pkl',
-            './serializations2/snippetsbyword_all_datasets_1234_text_300_2.pkl', 
-            './serializations2/snippetsbyword_all_datasets_1234_text_300_3.pkl',
-            './serializations2/snippetsbyword_all_datasets_1234_text_300_4.pkl', 
-            './serializations2/snippetsbyword_all_datasets_1234_text_300_5.pkl'
+            './serializations2/snippetsbyword_all_datasets_12345_text_300_0.pkl', 
+            './serializations2/snippetsbyword_all_datasets_12345_text_300_1.pkl',
+            './serializations2/snippetsbyword_all_datasets_12345_text_300_2.pkl', 
+            './serializations2/snippetsbyword_all_datasets_12345_text_300_3.pkl',
+            './serializations2/snippetsbyword_all_datasets_12345_text_300_4.pkl', 
+            './serializations2/snippetsbyword_all_datasets_12345_text_300_5.pkl',
+            './serializations2/snippetsbyword_all_datasets_12345_text_300_6.pkl'
         ]
 
 MANDATORY = ['id', 'initialization', 'minibatch', 'verbose', 'n_components', 'size', 
@@ -271,7 +272,7 @@ if __name__ == '__main__':
         # SIMILARITY
         similarity_results = {}
         similarity_tasks = {
-            #"RG65": fetch_RG65(),
+            "RG65": fetch_RG65(),
             #"MEN": fetch_MEN(),    
             #"WS353": fetch_WS353(),
             #"WS353R": fetch_WS353(which="relatedness"),
@@ -289,7 +290,7 @@ if __name__ == '__main__':
 
         # ANALOGY
         analogy_tasks = {
-            "Google": fetch_google_analogy(),
+            #Google": fetch_google_analogy(),
             #"MSR": fetch_msr_analogy()
         }
         analogy_results = {}
@@ -315,6 +316,62 @@ if __name__ == '__main__':
             categorization_results[name] = evaluate_categorization(w_embedding, data.X, data.y)
             print("Cluster purity on {} {}".format(name, categorization_results[name]))
         
+    
+    elif mode == 'teste_snippets':
+
+        id = 300005
+        with open('./logs/log_{}'.format(id), 'r', encoding='utf-8') as handle:
+            datafile = handle.readlines()
+            for x in datafile:
+                log = ast.literal_eval(x)
+        opts = log
+        opts['sentecefolder'] = './serializations/'
+        
+        vectors = SentenceVect(log)
+        #X = vectors.create_vectors()
+        
+        
+        #codebook = get_cluster(log, X)
+        
+        dataset = Datasets.factory(opts['dataset'])
+        words = dataset.get_data('distinct_words')
+        
+        words = {'EN-RG-65': ['car']}
+        
+        snippets_by_word = vectors.create_word_snippets(words)
+        #create_fingerprints(log, snippets_by_word, X, codebook, sparsity)
+
+
+
+
+        with open('./snippetsbyword_rg65_dataset_12345_text_300.pkl', 'rb') as f:
+            snippets = pickle.load(f)
+        car_counts = 0
+        maxidx = 0
+        for snippet in snippets['car']:
+            car_counts += snippet['counts']
+            if snippet['idx'] == 7:
+                print (snippet)
+            if snippet['idx'] > maxidx:
+                maxidx = snippet['idx']
+        print ('{} car counts in snippetsbyword_rg65_dataset_12345_text_300'.format(car_counts))
+        print ('{} maxidx'.format(maxidx))
+        #print(snippets['car'])
+
+
+        with open('./serializations/snippets_by_word_300005_EN-RG-65.pkl', 'rb') as f:
+            snippets = pickle.load(f)
+        car_counts = 0
+        maxidx = 0
+        for snippet in snippets['car']:
+            car_counts += snippet['counts']
+            if snippet['idx'] == 7:
+                print (snippet)
+            if snippet['idx'] > maxidx:
+                maxidx = snippet['idx']
+        print ('{} car counts in snippetsbyword_rg65_dataset_12345_text_300'.format(car_counts))
+        print ('{} maxidx'.format(maxidx))
+    
     elif mode == 'create_kmeans_fps':
 
         if len(sys.argv) != 4:
@@ -324,6 +381,7 @@ if __name__ == '__main__':
         #id = 100031
         id = sys.argv[2]
         sparsity = sys.argv[3]
+        sparsity = 0.02
         paragraph_length = 300
         dataextensions = '12345'
         column = 'text'
@@ -333,9 +391,8 @@ if __name__ == '__main__':
             for x in datafile:
                 log = ast.literal_eval(x)
         opts = log
-
-        
-        mode = 'most_common'
+        """
+        mode = 'datatsets'
         top = 10000
         if mode == 'most_common':
             with open('./vocabulary_{}_{}_{}.pkl'.format(dataextensions, column, paragraph_length), 'rb') as f:
@@ -386,7 +443,12 @@ if __name__ == '__main__':
             #word_snippets[word] += mydict[word] 
             del mydict
 
+        with open('./snippetsbyword_rg65_dataset_12345_text_300.pkl', 'wb') as f:
+            pickle.dump(snippets_by_word, f)
         #print ('Word car appears in {} documents '.format(len(snippets_by_word['car'])))
+        """
+        with open('./serializations/snippets_by_word_300005_EN-RG-65.pkl', 'rb') as f:
+            snippets_by_word = pickle.load(f)
 
         opts['new_log'] = False
         opts['repeat'] = False
@@ -604,7 +666,7 @@ if __name__ == '__main__':
             """
             d = datasets[0]
             start = 2
-            limit = 6
+            limit = 18
             a = evaluation_data[d][0][start:limit]
             b = evaluation_data[d][1][start:limit]
             c = evaluation_data[d][2][start:limit]
