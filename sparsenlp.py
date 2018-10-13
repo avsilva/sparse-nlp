@@ -103,11 +103,17 @@ def load_pickle_gc(_file):
     output.close()
     return mydict
 
+
 def gimme_glove(_dim):
     with open("./embeddings/glove.6B/glove.6B.{}d.txt".format(_dim), encoding='utf-8') as glove_raw:
         for line in glove_raw.readlines():
             splitted = line.split(' ')
             yield splitted[0], np.array(splitted[1:], dtype=np.float)
+
+def check_args(log):
+    for arg in MANDATORY:
+        if arg not in log:
+            raise KeyError('{} not found'.format(arg))
 
 
 FILES = [
@@ -118,6 +124,11 @@ FILES = [
             './serializations2/snippetsbyword_all_datasets_1234_text_300_4.pkl', 
             './serializations2/snippetsbyword_all_datasets_1234_text_300_5.pkl'
         ]
+
+MANDATORY = ['id', 'initialization', 'minibatch', 'verbose', 'n_components', 'size', 
+        'paragraph_length', 'niterations', 'n_features', 'use_hashing', 'use_idf', 
+        'algorithm', 'use_glove', 'dataextension', 'tokens', 
+        'new_log', 'repeat', 'dataset', 'clean']
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -676,13 +687,13 @@ if __name__ == '__main__':
 
 
         datareference = 'EN-RG-65'
-        sparsity = 0
+        sparsity = 0 
 
         for log in experiments.opts:
+
+            check_args(log)
+
             id = log['id']
-            log['repeat'] = True
-            log['new_log'] = False
-            log['dataset'] = datareference
             log['engine'] = experiments.engine
             log['sentecefolder'] = folder
 
@@ -690,8 +701,9 @@ if __name__ == '__main__':
             X = get_vector_representation(vectors)
             codebook = get_cluster(log, X)
             snippets_by_word = get_snippets_by_word(vectors, datareference)
-            create_fingerprints(log, snippets_by_word, X, codebook, sparsity) 
-            clean_files(folder, id)
+            create_fingerprints(log, snippets_by_word, X, codebook, sparsity)
+            if log['clean'] is True:
+                clean_files(folder, id)
 
     elif mode == 'clean':
 
