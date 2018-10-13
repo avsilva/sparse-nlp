@@ -77,8 +77,6 @@ class FingerPrint():
 
         if self.opts['algorithm'] == 'MINISOMBATCH' and X is None:
             raise ValueError ("X cannot be None when using MINISOMBATCH")
-        elif self.opts['algorithm'] == 'KMEANS' and X is not None:
-            raise ValueError ("X must be None when using KMEANS")
 
         """
         if isinstance(words, str):
@@ -298,13 +296,13 @@ class FingerPrint():
         
         if not os.path.exists("./images/{}".format(image_dir)):
             os.makedirs("./images/{}".format(image_dir))
-
+        """
         filepath = './images/{}/keys_{}.npy'.format(image_dir, self.opts['id'])
         with open(filepath, 'wb') as handle:
             pickle.dump(list(fp_dict.keys()), handle)
         csr = csr_matrix(list(fp_dict.values()))
         scipy.sparse.save_npz('./images/{}/csr_{}.npz'.format(image_dir, self.opts['id']), csr)
-        
+        """
         filepath = './images/{}/dict_{}.npy'.format(image_dir, self.opts['id'])
         if (os.path.isfile(filepath) is not False):
             print ('Appending new words to fingesprints dict...')
