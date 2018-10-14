@@ -69,6 +69,7 @@ class DataCleaner():
 
             if int(index) % 50000 == 0 and index != 0:
                 print('index {}'.format(index))
+        return counter
 
     def get_counter_lemmas(self, dataframe, column):
         counter = []
