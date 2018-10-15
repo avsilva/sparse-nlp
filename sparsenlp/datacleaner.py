@@ -36,7 +36,6 @@ class DataCleaner():
 
     def clean2(self, text):
         
-        
         tokens = text.lower()
         tokens = re.sub(r'\d+', '', tokens)
         tokens = ' '.join(word_tokenize(tokens))
@@ -45,24 +44,82 @@ class DataCleaner():
         #tokens = [x for x in tokens if x not in stopwords.words('english')]
         return tokens
 
-    def tokenize_text(self, dataframe, column):
+    def lemmatize(self, text):
 
-        #tokenizer = RegexpTokenizer(r'\w+')
-        doc_all = collections.Counter()
-        docs = []
+        lemmatizer = WordNetLemmatizer()
+        lemas = [lemmatizer.lemmatize(token) for token in text]
+        return lemas
+
+    def steemer(self, text):
+    
+        stemmer = PorterStemmer()
+        stems = [stemmer.stem(token) for token in tokens]
+        return stems
+
+    def tokenize_text(self, dataframe):
 
         num_processes = 6
         with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
-            dataframe['text'] = list(tqdm.tqdm(pool.map(self.clean2, dataframe[column], chunksize=10), total=dataframe.shape[0]))
+            dataframe['text'] = list(tqdm.tqdm(pool.map(self.clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
 
         return dataframe
 
-    def get_counter_as_is(self, dataframe, column):
+    def lemmatize_text(self, dataframe):
+
+        num_processes = 6
+        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            dataframe['lemmas'] = list(tqdm.tqdm(pool.map(self.lemmatize, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
+
+        return dataframe
+
+    def steemer_text(self, dataframe):
+    
+        num_processes = 6
+        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            dataframe['lemmas'] = list(tqdm.tqdm(pool.map(self.steemer, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
+
+        return dataframe
+
+    def get_dataset_counts_as_is(self, dataframe, words):
+        snippets_and_counts = {}
+        for w in words:
+            info = {'idx': 0, 'counts': 0}
+            snippets_and_counts[w] = [info]
+
+        for index, row in dataframe.iterrows():
+            tokens = row['text']
+            for w in words:
+                cnt = tokens.count(w)
+                if cnt != 0:
+                    info = {'idx': index, 'counts': cnt}
+                    snippets_and_counts[w].append(info)
+        return snippets_and_counts
+
+    def get_dataset_counts_lemmas(self, dataframe, words):
+        lemmatizer = WordNetLemmatizer()
+        snippets_and_counts = {}
+        for w in words:
+            info = {'idx': 0, 'counts': 0}
+            snippets_and_counts[w] = [info]
+
+        for index, row in dataframe.iterrows():
+            tokens = row['text']
+            lemas = [lemmatizer.lemmatize(token) for token in tokens]
+            for w in words:
+
+                if tokens.count(w) != 0:
+                    lema = lemmatizer.lemmatize(w)
+                    count_lemmas_in_doc = lemas.count(lema)                
+                    info = {'idx': index, 'counts': count_lemmas_in_doc}
+                    snippets_and_counts[w].append(info)
+        return snippets_and_counts
+
+    def get_counter_as_is(self, dataframe):
         counter = []
         for index, row in dataframe.iterrows():
             cnt = collections.Counter()
             cnt['idx'] = index
-            tokens = row[column]
+            tokens = row['text']
             for w in tokens:
                 cnt[w] += 1
             counter.append(cnt)
@@ -71,16 +128,16 @@ class DataCleaner():
                 print('index {}'.format(index))
         return counter
 
-    def get_counter_lemmas(self, dataframe, column):
+    def get_counter_lemmas(self, dataframe):
         counter = []
         lemmatizer = WordNetLemmatizer()
-        stemmer = PorterStemmer()
+        #stemmer = PorterStemmer()
         
         time1 = datetime.datetime.now()
         for index, row in dataframe.iterrows():
             cnt = collections.Counter()
             cnt['idx'] = index
-            tokens = row[column]
+            tokens = row['text']
             #print (tokens)
             #stems = [stemmer.stem(token) for token in tokens]
             lemas = [lemmatizer.lemmatize(token) for token in tokens]

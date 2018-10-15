@@ -4,6 +4,7 @@ from sklearn.preprocessing import Normalizer
 from sklearn.pipeline import make_pipeline
 import sparsenlp.modelresults as modelres
 import utils.decorators as decorate
+from sparsenlp.datacleaner import DataCleaner
 from time import time
 import pandas as pd
 import numpy as np
@@ -46,7 +47,8 @@ class SentenceVect():
         self.X = None
         self.snippets_by_word = None
         self.sentences = None
-        
+
+    """ 
     def get_word_snippets(self):
         logs = modelres.ModelResults('./logs')
         results = logs.get_results(exception=self.opts['id'])
@@ -59,7 +61,7 @@ class SentenceVect():
             with open('{}snippets_by_word_{}.pkl'.format(self.path, log_id), 'rb') as handle:
                 snippets_by_word = pickle.load(handle)
             return snippets_by_word
-        
+    """ 
     def get_word_snippets(self, word_snippets):
 
         print('Getting snippets by word: {}'.format(word_snippets))
@@ -78,8 +80,8 @@ class SentenceVect():
         """
 
         testdataset = list(reference_dataset.keys())[0]
-        testdataset_words = list(reference_dataset.values())[0]
-        testdataset_words = [w.lower() for w in testdataset_words]
+        words = list(reference_dataset.values())[0]
+        words = [w.lower() for w in words]
 
         logs = modelres.ModelResults('./logs')
   
@@ -91,21 +93,26 @@ class SentenceVect():
         word_snippets_id = self._check_same_word_snippets(results, testdataset)
 
         if 'repeat' in self.opts and self.opts['repeat'] is True:
-            #same_word_snippets = []
             word_snippets_id = False
 
         if word_snippets_id is not False:
-            #log_id = min(same_word_snippets)
             print('Using existing snippets by word: snippets_by_word_{}_{}.pkl'.format(word_snippets_id, testdataset))
             with open('{}snippets_by_word_{}_{}.pkl'.format(self.path, word_snippets_id, testdataset), 'rb') as handle:
                 snippets_by_word = pickle.load(handle)
         else:
             print('Creating new snippets by word: id {} for {}'.format(self.opts['id'], testdataset))
-            sentences = self._read_serialized_sentences_text()
+            #sentences = self._read_serialized_sentences_text()
 
-            snippets_by_word = self._get_snippets_and_counts(sentences, testdataset_words)
+            datacleaner = DataCleaner()
+            ext = '12'+str(self.opts['dataextension'].replace(',', ''))
+            dataframe_path = '{}dataframe_{}_text_{}.pkl'.format(self.path, ext, self.opts['paragraph_length'])
+            dataframe = pd.read_pickle(dataframe_path, compression='bz2') 
+            
+            #snippets_by_word = self._get_snippets_and_counts(sentences, words)
+            snippets_by_word = datacleaner.get_dataset_counts_as_is(dataframe, words)
             with open('{}snippets_by_word_{}_{}.pkl'.format(self.path, self.opts['id'], testdataset), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
+
         return snippets_by_word
 
     @decorate.elapsedtime_log
@@ -138,34 +145,28 @@ class SentenceVect():
         else:
             print ('Creating new vector representation: id {}'.format(self.opts['id']))
             
-            sentences = self._read_serialized_sentences_text()            
-            print('final sentences shape {}'.format(sentences.shape))
+            ext = '12'+str(self.opts['dataextension'].replace(',', ''))
+            dataframe_path = '{}dataframe_{}_text_{}.pkl'.format(self.path, ext, self.opts['paragraph_length'])
 
-            if 'token' not in self.opts:
-                self.opts['token'] = 'cleaned_text'
+            datacleaner = DataCleaner()
+            if os.path.isfile(dataframe_path):
+                dataframe = pd.read_pickle('{}dataframe_{}_{}.pkl'.format(self.path, ext, self.opts['paragraph_length']), compression='bz2') 
+            else:
+                sentences = self._read_serialized_sentences_text()            
+                print('final sentences shape {}'.format(sentences.shape))
+                dataframe = datacleaner.tokenize_text(sentences)
+                self._serialize_dataframe(dataframe)
 
-            self.X = self.sentence_representation(sentences[self.opts['token']])
-            #self.X = self.sentence_representation(sentences.cleaned_text)        
-            #rawdata = self._get_train_data(sentences)
-            #self.X = self.sentence_representation(rawdata)
-            
+            if self.opts['token'] == 'lemmas':
+                dataframe = datacleaner.lemmatize_text(dataframe)
+            elif self.opts['token'] == 'stemme':
+                dataframe = datacleaner.steemer_text(dataframe)
+
+            self.X = self.sentence_representation(dataframe[self.opts['token']])
             self._serialize_sentence_vector()
 
         return self.X
 
-    """
-    def _get_train_data(self, dataframe):
-
-        if self.opts['token'] == 'cleaned_text_all':
-            dataframe['train'] = dataframe['cleaned_text'].str.replace('_',' ')
-            dataframe['train'] = dataframe['cleaned_text'].str.lower()
-        else:
-            dataframe['train'] = dataframe[self.opts['token']]
-
-        return dataframe['train']
-    """
-
-    #TODO: bug fix: if word appears more then 1 time in doc only last counts are recorded (see line 182)
     def _get_snippets_and_counts(self, _dataframe, _word):
         
         snippets_and_counts = {}
@@ -173,11 +174,8 @@ class SentenceVect():
             info = {'idx': 0, 'counts': 0}
             snippets_and_counts[w] = [info]
 
-        print (self.opts['tokens'])
         try:
             for index, row in _dataframe.iterrows():
-
-                #print(row)
                 tokens = row[self.opts['tokens']].split()
                 for w in _word:
                     
@@ -185,7 +183,6 @@ class SentenceVect():
                         info = {'idx': index, 'counts': tokens.count(w)}
                         snippets_and_counts[w].append(info)
                 
-
                 if int(index) % 100000 == 0:
                     print('index {}'.format(index))
 
@@ -226,11 +223,11 @@ class SentenceVect():
                 df_sentences = pd.read_pickle('{}sentences/articles{}/{}'.format(
                                                 self.path, ext, file), compression="bz2")
                 new_sentences_df = new_sentences_df.append(df_sentences)
-                #print (new_sentences_df.shape)
-        #new_sentences_df.query('text_length_tokenized > {}'.format(self.opts['paragraph_length']), inplace=True)
-        #new_sentences_df = new_sentences_df[['id', 'tokenized']]
-        #new_sentences_df = new_sentences_df.rename(index=str, columns={"tokenized": "cleaned_text"})
         return new_sentences_df
+    
+    def _serialize_dataframe(self, dataframe):
+        ext = '12'+str(self.opts['dataextension'].replace(',', ''))
+        dataframe.to_pickle('{}dataframe_{}_text_{}.pkl'.format(self.path, ext, self.opts['paragraph_length']), compression='bz2')
     
     def _serialize_sentence_vector(self):
         """Serializes vector representation of sentences"""

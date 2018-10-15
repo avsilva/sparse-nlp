@@ -19,6 +19,7 @@ from sklearn.metrics import pairwise_distances
 from scipy.sparse import csr_matrix
 from scipy import sparse
 from nltk.corpus import stopwords
+import json
 
 from web.datasets.categorization import fetch_AP, fetch_battig, fetch_BLESS, fetch_ESSLI_1a, fetch_ESSLI_2b, fetch_ESSLI_2c
 from web.datasets.similarity import fetch_MEN, fetch_WS353, fetch_SimLex999, fetch_RW, fetch_multilingual_SimLex999, fetch_RG65, fetch_MTurk
@@ -41,17 +42,6 @@ def get_snippets_by_word(vectors, datareference):
     words = dataset.get_data('distinct_words')
     snippets_by_word = vectors.create_word_snippets(words)
     return snippets_by_word
-
-
-def get_vector_representation(vectors):
-    X = vectors.create_vectors()
-    return X
-
-
-def get_cluster(opts, X):
-    mycluster = SentenceCluster(opts)
-    codebook = mycluster.cluster(X)
-    return codebook
 
 def clean_files(folder, id):
     files = ['{}X_{}.npz'.format(folder, id), '{}codebook_{}.npy'.format(folder, id)]
@@ -115,6 +105,16 @@ def check_args(log):
         if arg not in log:
             raise KeyError('{} not found'.format(arg))
 
+def csr_vappend(a,b):
+    """ Takes in 2 csr_matrices and appends the second one to the bottom of the first one. 
+    Much faster than scipy.sparse.vstack but assumes the type to be csr and overwrites
+    the first matrix instead of copying it. The data, indices, and indptr still get copied."""
+
+    a.data = np.hstack((a.data,b.data))
+    a.indices = np.hstack((a.indices,b.indices))
+    a.indptr = np.hstack((a.indptr,(b.indptr + a.nnz)[1:]))
+    a._shape = (a.shape[0]+b.shape[0],b.shape[1])
+    return a
 
 FILES = [
             './serializations2/old/snippetsbyword_all_datasets_12345_text_300_0.pkl', 
@@ -150,7 +150,7 @@ if __name__ == '__main__':
     elif mode == 'calculate_freqs':
 
         paragraph_length = 300
-        dataextensions = '1234'
+        dataextensions = '12345'
         column = 'text'
         stopWords = set(stopwords.words('english'))
         
@@ -162,12 +162,13 @@ if __name__ == '__main__':
             print ('Loading {} '.format(file))
             mydict = load_pickle_gc(file)
   
+            """
             for word in stopWords:
                 try:
                     del mydict[word]
                 except KeyError as e:
                     pass
-
+            """
             i = 0
             for word, values in mydict.items():
                 
@@ -264,28 +265,47 @@ if __name__ == '__main__':
             sys.exit(1)
         id = sys.argv[2]
 
+        log = {}
+        finallogfile = './logs/final.json'
+        with open(finallogfile, 'r') as json_data:
+            #lines = handle.readlines()
+            results = json.load(json_data)
+            
+            
+
+        if id in results:
+            res = results[id] 
+        else:
+            results[id] = {}
+            res = results[id] 
+
         #w_embedding = fetch_Mine(id, format="dict", normalize=False, lower=False, clean_words=False)
         w_embedding = fetch_Mine(id, format="csr", normalize=False, lower=False, clean_words=False)
+
+        #w_embedding = fetch_GloVe(corpus="wiki-6B", dim=300)
 
         
         print('{}'.format(' '.join(['-' for x in range(30)])))
         # SIMILARITY
         similarity_results = {}
         similarity_tasks = {
-            "RG65": fetch_RG65(),
-            "MEN": fetch_MEN(),    
-            "WS353": fetch_WS353(),
-            "WS353R": fetch_WS353(which="relatedness"),
-            "WS353S": fetch_WS353(which="similarity"),
-            "SimLex999": fetch_SimLex999(),
-            "RW": fetch_RW(),
-            "MTurk": fetch_MTurk(),
+            #"RG65": fetch_RG65(),
+            #"MEN": fetch_MEN(),    
+            #"WS353": fetch_WS353(),
+            #"WS353R": fetch_WS353(which="relatedness"),
+            #"WS353S": fetch_WS353(which="similarity"),
+            #"SimLex999": fetch_SimLex999(),
+            #"RW": fetch_RW(),
+            #"MTurk": fetch_MTurk(),
             #"multilingual_SimLex999": fetch_multilingual_SimLex999()
         }
         for name, data in similarity_tasks.items():
             similarity_results[name] = evaluate_similarity(w_embedding, data.X, data.y)
             print ("Spearman correlation of scores on {} {}".format(name, similarity_results[name]))
+            res[name] = similarity_results[name]
 
+        
+        
         print('{}'.format(' '.join(['-' for x in range(30)])))
 
         # ANALOGY
@@ -295,10 +315,17 @@ if __name__ == '__main__':
         }
         analogy_results = {}
         for name, data in analogy_tasks.items():
-            analogy_results[name] = evaluate_analogy(w_embedding, data.X, data.y)
+            print(len(data.X))
+            data.X = data.X[:100]
+            data.y = data.y[:100]
+            print(data.X[0])
+            print(data.y[0])
+            #method="add", k=None, category=None, batch_size=100
+            analogy_results[name] = evaluate_analogy(w_embedding, data.X, data.y, 
+                method="add", k=None, category=None, batch_size=500)
             print("Analogy prediction accuracy on {} {}".format(name, analogy_results[name]))
-        analogy_results["SemEval2012_2"] = evaluate_on_semeval_2012_2(w_embedding)['all']
-        print("Analogy prediction accuracy on {} {}".format("SemEval2012", analogy_results["SemEval2012_2"]))
+        #analogy_results["SemEval2012_2"] = evaluate_on_semeval_2012_2(w_embedding)['all']
+        #print("Analogy prediction accuracy on {} {}".format("SemEval2012", analogy_results["SemEval2012_2"]))
 
 
         print('{}'.format(' '.join(['-' for x in range(30)])))
@@ -306,7 +333,7 @@ if __name__ == '__main__':
         categorization_tasks = {
                 #"AP": fetch_AP(),
                 #"BLESS": fetch_BLESS(),
-                #"Battig": fetch_battig(),
+                "Battig": fetch_battig(),
                 #"ESSLI_2c": fetch_ESSLI_2c(),
                 #"ESSLI_2b": fetch_ESSLI_2b(),
                 #"ESSLI_1a": fetch_ESSLI_1a()
@@ -315,6 +342,10 @@ if __name__ == '__main__':
         for name, data in categorization_tasks.items():
             categorization_results[name] = evaluate_categorization(w_embedding, data.X, data.y)
             print("Cluster purity on {} {}".format(name, categorization_results[name]))
+            res[name] = categorization_results[name]
+
+        with open(finallogfile, 'w') as file:
+            file.write(json.dumps(results))
         
     
     elif mode == 'teste_snippets':
@@ -328,18 +359,11 @@ if __name__ == '__main__':
         opts['sentecefolder'] = './serializations/'
         
         vectors = SentenceVect(log)
-        #X = vectors.create_vectors()
-        
-        
-        #codebook = get_cluster(log, X)
-        
         dataset = Datasets.factory(opts['dataset'])
         words = dataset.get_data('distinct_words')
         
         words = {'EN-RG-65': ['car']}
-        
         snippets_by_word = vectors.create_word_snippets(words)
-        #create_fingerprints(log, snippets_by_word, X, codebook, sparsity)
 
         with open('./snippetsbyword_rg65_dataset_12345_text_300.pkl', 'rb') as f:
             snippets = pickle.load(f)
@@ -369,6 +393,89 @@ if __name__ == '__main__':
         print ('{} car counts in snippetsbyword_rg65_dataset_12345_text_300'.format(car_counts))
         print ('{} maxidx'.format(maxidx))
     
+    elif mode == 'test_csr':
+
+        if len(sys.argv) != 3:
+            print('USAGE: python {} test_csr logid'.format(sys.argv[0]))
+            sys.exit(1)
+        id = sys.argv[2]
+
+        w = 'meaner'
+
+        filepath_keys = 'keys_{}_final.npy'.format(id)
+        with open('./images/fp_{}/{}'.format(id, filepath_keys), 'rb') as f:
+            keys = pickle.load(f)
+        filepath_csr = 'csr_{}_final.npz'.format(id)
+        csr = sparse.load_npz('./images/fp_{}/{}'.format(id, filepath_csr))
+
+        index = keys.index(w)
+        word_csr1 = csr[index]
+        
+
+    elif mode == 'join_csr':
+
+        if len(sys.argv) != 3:
+            print('USAGE: python {} join_csr logid'.format(sys.argv[0]))
+            sys.exit(1)
+        id = sys.argv[2]
+
+
+        
+        filepath_keys = 'keys_{}_datasets.npy'.format(id)
+        with open('./images/fp_{}/{}'.format(id, filepath_keys), 'rb') as f:
+            keys = pickle.load(f)
+        filepath_csr = 'csr_{}_datasets.npz'.format(id)
+        csr = sparse.load_npz('./images/fp_{}/{}'.format(id, filepath_csr))
+
+        index = keys.index('automobile')
+        word_csr1 = csr[index]
+
+        all_keys = []
+        all_csr = []
+        #csr_all = 
+        chunks = [0, 5000, 10000, 20000, 40000, 60000, 80000, 100000]
+        for index, item in enumerate(chunks):
+            if index < len(chunks) - 1:
+            #if index < len(chunks) - 7:
+                filepath_csr = 'csr_{}_{}_{}.npz'.format(id, chunks[index], chunks[index+1])
+                filepath_keys = 'keys_{}_{}_{}.npy'.format(id, chunks[index], chunks[index+1])
+                    
+                csr = sparse.load_npz('./images/fp_{}/{}'.format(id, filepath_csr))
+                #print(csr.shape)
+                all_csr.append(csr)
+                with open('./images/fp_{}/{}'.format(id, filepath_keys), 'rb') as f:
+                    keys = pickle.load(f)
+                    #print(keys[-5:])
+
+                all_keys += keys
+                #index = keys.index('boy')
+                #word_csr2 = csr[index]
+                #print (word_csr2)
+                #print ((word_csr1 != word_csr2).nnz==0)
+                if index > 0:
+                    
+                    all_csr[index] = csr_vappend(all_csr[index-1], all_csr[index])
+                    print(all_csr[index].shape)
+                
+        print (len(all_keys))
+        final_csr = all_csr[index-1]
+        print (final_csr.shape)
+
+        index = all_keys.index('automobile')
+        word_csr2 = final_csr[index]
+        print (word_csr2)
+        print ((word_csr1 != word_csr2).nnz==0)
+
+        
+        filepath_keys = './images/fp_{}/keys_{}_final.npy'.format(id, id)
+        with open(filepath_keys, 'wb') as handle:
+            pickle.dump(all_keys, handle)
+        
+        filepath_csr = './images/fp_{}/csr_{}_final.npz'.format(id, id)
+        scipy.sparse.save_npz(filepath_csr, final_csr)
+
+
+    
     elif mode == 'create_kmeans_fps':
 
         if len(sys.argv) != 4:
@@ -389,21 +496,41 @@ if __name__ == '__main__':
                 log = ast.literal_eval(x)
         opts = log
 
-        mode = 'datatsets'
-        top = 10000
-        if mode == 'most_common':
-            with open('./vocabulary_{}_{}_{}.pkl'.format(dataextensions, column, paragraph_length), 'rb') as f:
-                Counter = pickle.load(f)
+        mode = 'datasets'
+        
+        #min = 0
+        #max = 5000
+        #min = 4999
+        #max = 10000 first: temples - last: twist
+        #min = 9999
+        #max = 20000 first: discouraged - last: necks
+        #min = 19999
+        #max = 40000 #first: gan - last: greyhounds
+        #min = 39999
+        #max = 60000 # first: urbanised - last: gyeongbu
+        #min = 59999
+        #max = 80000 # first: nickelback - last: judit
+        #min = 79999
+        #max = 100000 # first: logrolling - last: gesang
+        min = 99999
+        max = 140000 # first: araújo - last: pule
 
-            words= [word for word, word_count in Counter.most_common(top)]
+        if mode == 'most_common':
+            with open('./serializations2/vocabulary_{}_{}_{}.pkl'.format(dataextensions, column, paragraph_length), 'rb') as f:
+                Counter = pickle.load(f)
+            
+            words = [word for word, word_count in Counter.most_common(max)]
             if 'idx' in words:
                 i = words.index("idx")
                 del words[i]
-        
-        elif mode == 'datatsets':
+            words = words[min:max]
+        elif mode == 'datasets':
             words = get_words(['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999', 'EN-MEN-LEM'])
             #words = get_words(['EN-RG-65'])
-            print ('Words {}'.format(len(words)))
+        
+        print ('first: {} - last: {}'.format(words[0], words[-1]))
+        print ('Words {}'.format(len(words)))
+        #print ('Counts for {} is {}'.format(words[-1], Counter[words[-1]]))
         
         mode2 = ''
         if mode2 == 'append':
@@ -526,8 +653,8 @@ if __name__ == '__main__':
         
         dataframe = pd.read_pickle('{}dataframe_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), compression='bz2')
         datacleaner = DataCleaner()
-        counter = datacleaner.get_counter_as_is(dataframe, column)
-        #counter = datacleaner.get_counter_lemmas(dataframe, column)
+        counter = datacleaner.get_counter_as_is(dataframe)
+        #counter = datacleaner.get_counter_lemmas(dataframe)
         with open('{}counter_all_datasets_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), 'wb') as f:
             pickle.dump(counter, f)
     
@@ -543,7 +670,7 @@ if __name__ == '__main__':
         vectors = SentenceVect(opts)
         dataframe = vectors._read_serialized_sentences_text()
         dataframe = dataframe[[column]]
-        dataframe = datacleaner.tokenize_text(dataframe, column)
+        dataframe = datacleaner.tokenize_text(dataframe)
         
         ext = '12'+str(dataextensions.replace(',', ''))
         if experiments.sentecefolder is not None:
@@ -725,8 +852,11 @@ if __name__ == '__main__':
         opts['engine'] = experiments.engine
 
         vectors = SentenceVect(opts)
-        X = get_vector_representation(vectors)
-        codebook = get_cluster(opts, X)
+        X = vectors.create_vectors()
+        
+        mycluster = SentenceCluster(opts)
+        codebook = mycluster.cluster(X)
+        
         snippets_by_word = get_snippets_by_word(vectors, datareference)
         create_fingerprints(opts, snippets_by_word, X, codebook, sparsity)        
 
@@ -751,8 +881,11 @@ if __name__ == '__main__':
             log['sentecefolder'] = folder
 
             vectors = SentenceVect(log)
-            X = get_vector_representation(vectors)
-            codebook = get_cluster(log, X)
+            X = vectors.create_vectors()
+            
+            mycluster = SentenceCluster(opts)
+            codebook = mycluster.cluster(X)
+
             snippets_by_word = get_snippets_by_word(vectors, datareference)
             create_fingerprints(log, snippets_by_word, X, codebook, sparsity)
             if log['clean'] is True:
@@ -802,3 +935,9 @@ if __name__ == '__main__':
 #! python3 sparsenlp.py create_counter #1:11:10
 #! python3 sparsenlp.py create_chunks #0:08:41
 #%time! python3 sparsenlp.py read_chunks
+
+#        init_size = 4*size
+#        batch_size = 10000
+#        n_init=3
+#        #km = MiniBatchKMeans(n_clusters=size, init='k-means++', n_init=1, init_size=1000, batch_size=1000, verbose=self.opts['verbose'])
+#        km = MiniBatchKMeans(n_clusters=size, init='k-means++', n_init=n_init, init_size=init_size, batch_size=batch_size, random_state=5, verbose=self.opts['verbose'])
