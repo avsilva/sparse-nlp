@@ -147,6 +147,22 @@ if __name__ == '__main__':
         datacleaner.tokenize_pandas_column('text')
         datacleaner.serialize('articles3_AB.bz2', '../wikiextractor/jsonfiles/')
 
+    elif mode == 'calculate_freqs2':
+
+        if len(sys.argv) != 3:
+            print('USAGE: python {} {} folder'.format(sys.argv[0], sys.argv[1]))
+            sys.exit(1)
+        folder = sys.argv[2]
+        datacleaner = DataCleaner()
+        folder = './datasets/wikidumps/{}'.format(folder)
+        dataframe = datacleaner.ingestfiles(folder, 'pandas')
+
+        dataframe['nwords'] = dataframe['text'].str.split().apply(len)
+        #print (dataframe[['text', 'nwords']][:2])
+        nwords = dataframe.aggregate({'nwords': ['sum']})
+        print('number of articles is {}'.format(dataframe.shape[0]))   
+        print(nwords)
+    
     elif mode == 'calculate_freqs':
 
         paragraph_length = 300
