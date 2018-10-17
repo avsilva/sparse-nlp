@@ -16,7 +16,7 @@ class ModelResults():
         data = []
         for subdir, dirs, files in os.walk(self.folder):
             for file in files:
-                if (file.find('results') != -1):
+                if (file.find('final') != -1):
                     continue
 
                 if ( file != 'log_{}'.format(exception) ):

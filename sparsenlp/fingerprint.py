@@ -61,7 +61,7 @@ class FingerPrint():
                       'MINISOMRANDOM': self._minisom}
     
     @decorate.elapsedtime_log
-    def create_fingerprints(self, snippets_by_word=None, X=None, codebook=None, sparsity=None):
+    def create_fingerprints(self, snippets_by_word, codebook, sparsity, mode, X=None):
         """Creates fingerprint for each word.
         
         Attributes
@@ -71,9 +71,6 @@ class FingerPrint():
         words : list
             words for which fingerprint will be created
         """
-
-        if sparsity is None:
-            raise ValueError ("Sparsity cannot be None")
 
         if self.opts['algorithm'] == 'MINISOMBATCH' and X is None:
             raise ValueError ("X cannot be None when using MINISOMBATCH")
@@ -87,11 +84,17 @@ class FingerPrint():
         """
         words = list(snippets_by_word.keys())
         print ('Creating SDR for {} words'.format(len(words)))
-        self.algos[self.opts['algorithm']](snippets_by_word, words, X, codebook, sparsity)
+        if self.opts['algorithm'] == 'KMEANS':
+            self._kmeans(snippets_by_word, words, codebook, sparsity, mode)
+        elif self.opts['algorithm'] == 'MINISOMBATCH':
+            self._minisom(snippets_by_word, words, X, codebook, sparsity, mode)
+
+
+        #self.algos[self.opts['algorithm']](snippets_by_word, words, X, codebook, sparsity)
 
         return True
 
-    def _kmeans(self, snippets_by_word, words, X, codebook, sparsity):
+    def _kmeans(self, snippets_by_word, words, codebook, sparsity, mode):
         """Creates fingerprints using kmeans codebook.
         
         Attributes
@@ -127,7 +130,7 @@ class FingerPrint():
                 print('index {}'.format(index))
         #print (word_fingerprint)
         
-        self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']))
+        self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']), mode)
         del word_fingerprint
 
     def _get_unique_word_vectors(self, unique_indexes, X):
@@ -301,31 +304,33 @@ class FingerPrint():
         b = vfunc(a)
         return b
 
-    def _create_dict_fingerprint_image(self, fp_dict, image_dir):
+    def _create_dict_fingerprint_image(self, fp_dict, image_dir, mode):
         
         if not os.path.exists("./images/{}".format(image_dir)):
             os.makedirs("./images/{}".format(image_dir))
         
-        filepath = './images/{}/keys_{}.npy'.format(image_dir, self.opts['id'])
-        with open(filepath, 'wb') as handle:
-            pickle.dump(list(fp_dict.keys()), handle)
-        csr = csr_matrix(list(fp_dict.values()))
-        scipy.sparse.save_npz('./images/{}/csr_{}.npz'.format(image_dir, self.opts['id']), csr)
-        """
-        filepath = './images/{}/dict_{}.npy'.format(image_dir, self.opts['id'])
-        if (os.path.isfile(filepath) is not False):
-            print ('Appending new words to fingesprints dict...')
-            with open(filepath, 'rb') as handle:
-                fingerprints = pickle.load(handle)
-            fingerprints.update(fp_dict)
-            print ('Writing new dict to file...')
+        if mode == 'csr':
+            filepath = './images/{}/keys_{}.npy'.format(image_dir, self.opts['id'])
             with open(filepath, 'wb') as handle:
-                pickle.dump(fingerprints, handle)
-        else:
-            print ('Creating  fingesprints dict...')
-            with open(filepath, 'wb') as handle:
-                pickle.dump(fp_dict, handle)
-        """
+                pickle.dump(list(fp_dict.keys()), handle)
+            csr = csr_matrix(list(fp_dict.values()))
+            scipy.sparse.save_npz('./images/{}/csr_{}.npz'.format(image_dir, self.opts['id']), csr)
+        elif mode == 'dict':
+        
+            filepath = './images/{}/dict_{}.npy'.format(image_dir, self.opts['id'])
+            if (os.path.isfile(filepath) is not False):
+                print ('Appending new words to fingesprints dict...')
+                with open(filepath, 'rb') as handle:
+                    fingerprints = pickle.load(handle)
+                fingerprints.update(fp_dict)
+                print ('Writing new dict to file...')
+                with open(filepath, 'wb') as handle:
+                    pickle.dump(fingerprints, handle)
+            else:
+                print ('Creating  fingesprints dict...')
+                with open(filepath, 'wb') as handle:
+                    pickle.dump(fp_dict, handle)
+        
     def _create_fp_image(self, a, word, image_dir):
         
         if not os.path.exists("./images/"+image_dir):

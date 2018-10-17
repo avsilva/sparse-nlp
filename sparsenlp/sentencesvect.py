@@ -48,20 +48,7 @@ class SentenceVect():
         self.snippets_by_word = None
         self.sentences = None
 
-    """ 
-    def get_word_snippets(self):
-        logs = modelres.ModelResults('./logs')
-        results = logs.get_results(exception=self.opts['id'])
-        same_word_snippets = self._check_same_word_snippets(results)
-        if len(same_word_snippets) == 0:
-            raise ValueError('Cannot get word snippets !!!')
-        else:
-            log_id = min(same_word_snippets)
-            print('Using existing snippets by word: id {}'.format(log_id))
-            with open('{}snippets_by_word_{}.pkl'.format(self.path, log_id), 'rb') as handle:
-                snippets_by_word = pickle.load(handle)
-            return snippets_by_word
-    """ 
+   
     def get_word_snippets(self, word_snippets):
 
         print('Getting snippets by word: {}'.format(word_snippets))
@@ -145,27 +132,42 @@ class SentenceVect():
         else:
             print ('Creating new vector representation: id {}'.format(self.opts['id']))
             
-            ext = '12'+str(self.opts['dataextension'].replace(',', ''))
-            dataframe_path = '{}dataframe_{}_text_{}.pkl'.format(self.path, ext, self.opts['paragraph_length'])
+            
 
             datacleaner = DataCleaner()
-            if os.path.isfile(dataframe_path):
-                dataframe = pd.read_pickle('{}dataframe_{}_{}.pkl'.format(self.path, ext, self.opts['paragraph_length']), compression='bz2') 
-            else:
-                sentences = self._read_serialized_sentences_text()            
-                print('final sentences shape {}'.format(sentences.shape))
-                dataframe = datacleaner.tokenize_text(sentences)
-                self._serialize_dataframe(dataframe)
+            dataframe = self.get_dataframe()
 
-            if self.opts['token'] == 'lemmas':
+            if self.opts['tokens'] == 'lemmas':
                 dataframe = datacleaner.lemmatize_text(dataframe)
-            elif self.opts['token'] == 'stemme':
+            elif self.opts['tokens'] == 'stemme':
                 dataframe = datacleaner.steemer_text(dataframe)
 
-            self.X = self.sentence_representation(dataframe[self.opts['token']])
+            # from tokens list to text
+            dataframe[self.opts['tokens']] = dataframe[self.opts['tokens']].apply(' '.join)
+            self.X = self.sentence_representation(dataframe[self.opts['tokens']])
             self._serialize_sentence_vector()
 
         return self.X
+
+    def get_dataframe(self):
+        ext = '12'+str(self.opts['dataextension'].replace(',', ''))
+        dataframe_path = '{}dataframe_{}_text_{}.pkl'.format(self.path, ext, self.opts['paragraph_length'])
+        datacleaner = DataCleaner()
+        if os.path.isfile(dataframe_path):
+            print ('Reading dataframe {}'.format(dataframe_path))
+            dataframe = pd.read_pickle(dataframe_path, compression='bz2') 
+            print(dataframe.shape)
+            print(dataframe.columns)
+        else:
+            print ('Creating new dataframe in {}'.format(dataframe_path))
+            sentences = self._read_serialized_sentences_text()
+            sentences = sentences[['text']]     
+            print('final sentences shape {}'.format(sentences.shape))
+            dataframe = datacleaner.tokenize_text(sentences)
+            self._serialize_dataframe(dataframe, dataframe_path)
+
+        return dataframe
+
 
     def _get_snippets_and_counts(self, _dataframe, _word):
         
@@ -225,9 +227,8 @@ class SentenceVect():
                 new_sentences_df = new_sentences_df.append(df_sentences)
         return new_sentences_df
     
-    def _serialize_dataframe(self, dataframe):
-        ext = '12'+str(self.opts['dataextension'].replace(',', ''))
-        dataframe.to_pickle('{}dataframe_{}_text_{}.pkl'.format(self.path, ext, self.opts['paragraph_length']), compression='bz2')
+    def _serialize_dataframe(self, dataframe, dataframe_path):
+        dataframe.to_pickle(dataframe_path, compression='bz2')
     
     def _serialize_sentence_vector(self):
         """Serializes vector representation of sentences"""

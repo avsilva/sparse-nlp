@@ -92,15 +92,14 @@ class SentenceCluster():
         elif 'repeat' in self.opts and self.opts['repeat'] is False:
             same_codebook = [self.opts['id']]
         else:
-
             results = logs.get_results(exception=excpt)
             same_codebook = self.check_same_codebook(results)
 
-            if len(same_codebook) > 0:
-                log_id = min(same_codebook)
-                filepath = '{}codebook_{}.npy'.format(self.path, log_id)
-                if (os.path.isfile(filepath) is False):
-                    same_codebook = []
+        if len(same_codebook) > 0:
+            log_id = min(same_codebook)
+            filepath = '{}codebook_{}.npy'.format(self.path, log_id)
+            if (os.path.isfile(filepath) is False):
+                same_codebook = []
         
         if len(same_codebook) > 0:
             log_id = min(same_codebook)

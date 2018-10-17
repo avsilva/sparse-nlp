@@ -32,10 +32,6 @@ from web.evaluate import evaluate_categorization, evaluate_similarity, evaluate_
 # https://www.benfrederickson.com/dont-pickle-your-data/
 # TODO: loop over logs and clean/notclean
 
-def create_fingerprints(opts, snippets_by_word, X, codebook, sparsity):
-    fingerprints = FingerPrint(opts, opts['engine'])
-    fingerprints.create_fingerprints(snippets_by_word, X, codebook, sparsity)
-
 
 def get_snippets_by_word(vectors, datareference):
     dataset = Datasets.factory(datareference)
@@ -124,6 +120,13 @@ FILES = [
             './serializations2/old/snippetsbyword_all_datasets_12345_text_300_4.pkl', 
             './serializations2/old/snippetsbyword_all_datasets_12345_text_300_5.pkl',
             './serializations2/old/snippetsbyword_all_datasets_12345_text_300_6.pkl'
+        ]
+
+FILES2 = [
+            '/dev/shm/snippetsbyword_12_text_200_0.pkl', 
+            '/dev/shm/snippetsbyword_12_text_200_1.pkl',
+            '/dev/shm/snippetsbyword_12_text_200_2.pkl', 
+            '/dev/shm/snippetsbyword_12_text_200_3.pkl',
         ]
 
 MANDATORY = ['id', 'initialization', 'minibatch', 'verbose', 'n_components', 'size', 
@@ -305,7 +308,7 @@ if __name__ == '__main__':
         # SIMILARITY
         similarity_results = {}
         similarity_tasks = {
-            #"RG65": fetch_RG65(),
+            "RG65": fetch_RG65(),
             #"MEN": fetch_MEN(),    
             #"WS353": fetch_WS353(),
             #"WS353R": fetch_WS353(which="relatedness"),
@@ -349,7 +352,7 @@ if __name__ == '__main__':
         categorization_tasks = {
                 #"AP": fetch_AP(),
                 #"BLESS": fetch_BLESS(),
-                "Battig": fetch_battig(),
+                #"Battig": fetch_battig(),
                 #"ESSLI_2c": fetch_ESSLI_2c(),
                 #"ESSLI_2b": fetch_ESSLI_2b(),
                 #"ESSLI_1a": fetch_ESSLI_1a()
@@ -541,8 +544,8 @@ if __name__ == '__main__':
                 del words[i]
             words = words[min:max]
         elif mode == 'datasets':
-            words = get_words(['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999', 'EN-MEN-LEM'])
-            #words = get_words(['EN-RG-65'])
+            #words = get_words(['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999', 'EN-MEN-LEM'])
+            words = get_words(['EN-RG-65'])
         
         print ('first: {} - last: {}'.format(words[0], words[-1]))
         print ('Words {}'.format(len(words)))
@@ -566,7 +569,7 @@ if __name__ == '__main__':
             print ('First word to append {}'.format(words2[2]))
         
         snippets_by_word = {}
-        for file in FILES:
+        for file in FILES2:
             print ('Loading {} '.format(file))
             mydict = load_pickle_gc(file)
             
@@ -595,7 +598,6 @@ if __name__ == '__main__':
         if experiments.sentecefolder is not None:
             opts['sentecefolder'] = experiments.sentecefolder
         #opts['dataset'] = datareference
-
         #vectors = SentenceVect(opts)
         #X = vectors.create_vectors()
 
@@ -604,7 +606,7 @@ if __name__ == '__main__':
 
         engine = experiments.engine
         fingerprints = FingerPrint(opts, engine)
-        fingerprints.create_fingerprints(snippets_by_word, None, codebook, sparsity)
+        fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'csr')
     
     elif mode == 'read_chunks':
         
@@ -619,18 +621,20 @@ if __name__ == '__main__':
             del mydict
         print (len(word_snippets[word]))
     
-    elif mode == 'create_chunks':
+    elif mode == 'create_chunks': # creates chunk files with counts in each document by token {'car': [{idx:7, counts:2}, {idx:8, counts:1}]}
+        # for total counts in all documents it needs to loop all chunk files
         
         datacleaner = DataCleaner()
-        paragraph_length = 300
-        dataextensions = '12345'
+        paragraph_length = 200
+        #dataextensions = '12345'
+        dataextensions = '12'
         column = 'text'
 
         if experiments.sentecefolder is not None:
             basefolder = experiments.sentecefolder
         else:
             basefolder = './'
-        with open('{}counter_all_datasets_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), 'rb') as f:
+        with open('{}counter_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), 'rb') as f:
             counter = pickle.load(f)
         
         rows = len(counter)
@@ -653,13 +657,14 @@ if __name__ == '__main__':
             del counter1
             #with open('./snippetsbyword_all_datasets_1234_{}_{}_{}.msgpack'.format(column, paragraph_length, i), 'wb') as f:
             #    msgpack.pack(snippets_by_word, f)
-            with open('{}snippetsbyword_all_datasets_{}_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length, i), 'wb') as f:
+            with open('{}snippetsbyword_{}_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length, i), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
             del snippets_by_word
     
-    elif mode == 'create_counter':
-        paragraph_length = 300
-        dataextensions = '12345'
+    elif mode == 'create_counter': # creates dict with token counts by document {'idx7': [{car:2, bike:2}, 'idx8': [{car:2, water:1}]}
+        paragraph_length = 200
+        #dataextensions = '12345'
+        dataextensions = '12'
         column = 'text'
 
         if experiments.sentecefolder is not None:
@@ -671,12 +676,13 @@ if __name__ == '__main__':
         datacleaner = DataCleaner()
         counter = datacleaner.get_counter_as_is(dataframe)
         #counter = datacleaner.get_counter_lemmas(dataframe)
-        with open('{}counter_all_datasets_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), 'wb') as f:
+        with open('{}counter_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), 'wb') as f:
             pickle.dump(counter, f)
     
     elif mode == 'create_dataframe_snippets':
-        paragraph_length = 300
-        dataextensions = '3,4,5'
+        paragraph_length = 200
+        #dataextensions = '3,4,5'
+        dataextensions = ''
         column = 'text'
         datacleaner = DataCleaner()
         opts = {'id': 0, 'paragraph_length': paragraph_length, 'dataextension': dataextensions}
@@ -684,15 +690,16 @@ if __name__ == '__main__':
             opts['sentecefolder'] = experiments.sentecefolder
         
         vectors = SentenceVect(opts)
-        dataframe = vectors._read_serialized_sentences_text()
-        dataframe = dataframe[[column]]
-        dataframe = datacleaner.tokenize_text(dataframe)
+        dataframe = vectors.get_dataframe()
+        #dataframe = vectors._read_serialized_sentences_text()
+        #dataframe = dataframe[[column]]
+        #dataframe = datacleaner.tokenize_text(dataframe)
         
-        ext = '12'+str(dataextensions.replace(',', ''))
-        if experiments.sentecefolder is not None:
-            dataframe.to_pickle('{}dataframe_{}_{}_{}.pkl'.format(experiments.sentecefolder, ext, column, paragraph_length), compression='bz2')
-        else:
-            dataframe.to_pickle('./dataframe_{}_{}_{}.pkl'.format(ext, column, paragraph_length), compression='bz2')
+        #ext = '12'+str(dataextensions.replace(',', ''))
+        #if experiments.sentecefolder is not None:
+        #    dataframe.to_pickle('{}dataframe_{}_{}_{}.pkl'.format(experiments.sentecefolder, ext, column, paragraph_length), compression='bz2')
+        #else:
+        #    dataframe.to_pickle('./dataframe_{}_{}_{}.pkl'.format(ext, column, paragraph_length), compression='bz2')
 
         
     
@@ -726,34 +733,29 @@ if __name__ == '__main__':
         
         engine = experiments.engine
         fingerprints = FingerPrint(opts, engine)
-        fingerprints.create_fingerprints(snippets_by_word, X, codebook, sparsity)
+        fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, X)
     
     elif mode == 'create_fps':
 
-        if len(sys.argv) != 4:
-            print('USAGE: python {} logid dataset'.format(sys.argv[0]))
+        if len(sys.argv) != 3:
+            print('USAGE: python {} logid'.format(sys.argv[0]))
             sys.exit(1)
 
         id = sys.argv[2]
-        datareference = sys.argv[3]
+        datareference = 'EN-RG-65'
         sparsity = 0
 
-        with open('./logs/log_{}'.format(id), 'r', encoding='utf-8') as handle:
-            datafile = handle.readlines()
-            for x in datafile:
-                log = ast.literal_eval(x)
-
-        opts = log
-
+        for log in experiments.opts:
+            if log['id'] == int(id):
+                opts = log
+        
         dataset = Datasets.factory(datareference)
         words = dataset.get_data('distinct_words')
 
-        opts['new_log'] = False
-        opts['repeat'] = False
         if experiments.sentecefolder is not None:
             opts['sentecefolder'] = experiments.sentecefolder
-        
         opts['dataset'] = datareference
+        opts['engine'] = experiments.engine
 
         vectors = SentenceVect(opts)
         X = vectors.create_vectors()
@@ -764,10 +766,11 @@ if __name__ == '__main__':
 
         engine = experiments.engine
         fingerprints = FingerPrint(opts, engine)
-        fingerprints.create_fingerprints(snippets_by_word, X, codebook, sparsity)
+        fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'dict', X=X)
+        fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'csr', X=X)
         
 
-    elif mode == 'evaluate':
+    elif mode == 'evaluate_dict_mode':
 
         if len(sys.argv) != 4:
             print('USAGE: python {} evaluate logid sparsity'.format(sys.argv[0]))
@@ -860,21 +863,22 @@ if __name__ == '__main__':
         if not isinstance(opts, dict):
             raise ValueError('no log found with id {}'.format(id))
         
-        opts['repeat'] = True
-        opts['new_log'] = False
+        #opts['repeat'] = False
+        #opts['new_log'] = False
         if experiments.sentecefolder is not None:
             opts['sentecefolder'] = experiments.sentecefolder
         opts['dataset'] = datareference
         opts['engine'] = experiments.engine
-
+        
         vectors = SentenceVect(opts)
         X = vectors.create_vectors()
         
         mycluster = SentenceCluster(opts)
         codebook = mycluster.cluster(X)
         
-        snippets_by_word = get_snippets_by_word(vectors, datareference)
-        create_fingerprints(opts, snippets_by_word, X, codebook, sparsity)        
+        dataset = Datasets.factory(datareference)
+        words = dataset.get_data('distinct_words')
+        snippets_by_word = vectors.create_word_snippets(words)      
 
     
     elif mode == 'cluster_fps_all':
@@ -903,7 +907,9 @@ if __name__ == '__main__':
             codebook = mycluster.cluster(X)
 
             snippets_by_word = get_snippets_by_word(vectors, datareference)
-            create_fingerprints(log, snippets_by_word, X, codebook, sparsity)
+            
+            fingerprints = FingerPrint(log, log['engine'])
+            fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, X)
             if log['clean'] is True:
                 clean_files(folder, id)
 
@@ -940,7 +946,7 @@ if __name__ == '__main__':
     print('time elapsed: {}'.format(time2 - time1))
 
 # python -W ignore sparsenlp.py cluster 201
-# python -W ignore sparsenlp.py create_fps 2001 EN-RG-65
+# python -W ignore sparsenlp.py create_fps 2001
 # python -W ignore sparsenlp.py create_fps2 100031 snippetsbyword_all_datasets_1234_text_300.pkl
 # python sparsenlp.py cluster_fps_all
 # python -W ignore sparsenlp.py evaluate 3
