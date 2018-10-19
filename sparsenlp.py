@@ -174,7 +174,7 @@ if __name__ == '__main__':
     elif mode == 'prepare_dataframes':
         
 
-        paragraph_length = 200
+        paragraph_length = 300
         articles = 'articles5'
         folder = '/dev/shm/sentences/'+articles
 
@@ -812,7 +812,8 @@ if __name__ == '__main__':
         engine = experiments.engine
         fingerprints = FingerPrint(opts, engine)
         fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'dict', X=X)
-        fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'csr', X=X)
+        if opts['algorithm'] == 'KMEANS':
+            fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'csr', X=X)
         
 
     elif mode == 'evaluate_dict_mode':
