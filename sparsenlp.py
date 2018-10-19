@@ -13,6 +13,17 @@ from sparsenlp.datasets import Datasets
 import experiments
 import msgpack
 import gc
+import concurrent.futures
+import tqdm
+import re
+from nltk.tokenize import word_tokenize
+from nltk.corpus import stopwords
+from nltk.tokenize import RegexpTokenizer
+from nltk.stem import WordNetLemmatizer
+from nltk.stem.porter import *
+
+tokenizer = RegexpTokenizer(r'\w+')
+
 import collections
 from scipy.spatial import distance
 from sklearn.metrics import pairwise_distances
@@ -112,6 +123,16 @@ def csr_vappend(a,b):
     a._shape = (a.shape[0]+b.shape[0],b.shape[1])
     return a
 
+def clean2(text):
+        
+        tokens = text.lower()
+        tokens = re.sub(r'\d+', '', tokens)
+        tokens = ' '.join(word_tokenize(tokens))
+        tokens = tokenizer.tokenize(tokens)
+        tokens = [x for x in tokens if len(x) > 2]
+        tokens = [x for x in tokens if x not in stopwords.words('english')]
+        return tokens
+
 FILES = [
             './serializations2/old/snippetsbyword_all_datasets_12345_text_300_0.pkl', 
             './serializations2/old/snippetsbyword_all_datasets_12345_text_300_1.pkl',
@@ -150,6 +171,30 @@ if __name__ == '__main__':
         datacleaner.tokenize_pandas_column('text')
         datacleaner.serialize('articles3_AB.bz2', '../wikiextractor/jsonfiles/')
 
+    elif mode == 'prepare_dataframes':
+        
+
+        paragraph_length = 200
+        articles = 'articles5'
+        folder = '/dev/shm/sentences/'+articles
+
+        file = folder+'/'+articles+'_'+str(paragraph_length)+'.bz2'
+        dataframe = pd.read_pickle(file, compression="bz2")
+        print (dataframe.shape)
+        print (dataframe.columns)
+        
+        num_processes = 7
+        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            dataframe['text'] = list(tqdm.tqdm(pool.map(clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
+
+        dataframe['text'] = dataframe['text'].apply(' '.join)
+        result = dataframe[['text']]
+        print(result.head(3))
+        #dataframe["text"] = dataframe.loc[:,('text')].apply(clean2)
+
+        file = folder+'/'+articles+'_'+str(paragraph_length)+'_ok.bz2'
+        result.to_pickle(file, compression='bz2')
+    
     elif mode == 'calculate_freqs2':
 
         if len(sys.argv) != 3:

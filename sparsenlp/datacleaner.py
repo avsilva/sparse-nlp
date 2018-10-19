@@ -11,10 +11,10 @@ import multiprocessing
 import tqdm
 import collections
 import re
+import time
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
-from nltk.tokenize import RegexpTokenizer
-from utils.corpora import clean_text as tokenizer
+#from utils.corpora import clean_text as tokenizer
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem import WordNetLemmatizer
 from nltk.stem.porter import *
@@ -40,7 +40,7 @@ class DataCleaner():
         tokens = re.sub(r'\d+', '', tokens)
         tokens = ' '.join(word_tokenize(tokens))
         tokens = tokenizer.tokenize(tokens)
-        tokens = [x for x in tokens if len(x) > 2]
+        #tokens = [x for x in tokens if len(x) > 2]
         #tokens = [x for x in tokens if x not in stopwords.words('english')]
         return tokens
 
@@ -57,10 +57,13 @@ class DataCleaner():
         return stems
 
     def tokenize_text(self, dataframe):
+        
+        dataframe["text"] = dataframe.loc[:,('text')].apply(self.clean2)
+        #print(dataframe.head(3))
 
-        num_processes = 6
-        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
-            dataframe['text'] = list(tqdm.tqdm(pool.map(self.clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
+        #num_processes = 1
+        #with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+        #    dataframe['text'] = list(tqdm.tqdm(pool.map(self.clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
 
         return dataframe
 

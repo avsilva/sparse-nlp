@@ -160,8 +160,11 @@ class SentenceVect():
             print(dataframe.columns)
         else:
             print ('Creating new dataframe in {}'.format(dataframe_path))
+            #self.opts['dataextension'] = ''
+            #self.opts['paragraph_length'] = 500
             sentences = self._read_serialized_sentences_text()
             sentences = sentences[['text']]     
+            
             print('final sentences shape {}'.format(sentences.shape))
             dataframe = datacleaner.tokenize_text(sentences)
             self._serialize_dataframe(dataframe, dataframe_path)
@@ -204,6 +207,7 @@ class SentenceVect():
             if 'dataextension' in self.opts and self.opts['dataextension'] != '':
                 extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
                 self.sentences = self.sentences.append(extension_sentences, ignore_index=True)
+                del extension_sentences
             
 
         except OSError as e:
@@ -225,6 +229,7 @@ class SentenceVect():
                 df_sentences = pd.read_pickle('{}sentences/articles{}/{}'.format(
                                                 self.path, ext, file), compression="bz2")
                 new_sentences_df = new_sentences_df.append(df_sentences)
+                del df_sentences
         return new_sentences_df
     
     def _serialize_dataframe(self, dataframe, dataframe_path):
