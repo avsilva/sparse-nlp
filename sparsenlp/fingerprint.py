@@ -146,7 +146,7 @@ class FingerPrint():
                 idx_vectors[key] = result[key]
         return idx_vectors
 
-    def _create_fp_for_words(self, snippets_by_word, words, idx_vectors, H, W, sparsity):
+    def _create_fp_for_words(self, snippets_by_word, words, idx_vectors, H, W, sparsity, mode):
 
         word_fingerprint = {} 
         for word in words:
@@ -161,9 +161,9 @@ class FingerPrint():
             a = self._sparsify_fingerprint(a, sparsity)
             #self._create_fp_image(a, word, 'fp_{}'.format(self.opts['id']))
             word_fingerprint[word] = a
-        self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']))
+        self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']), mode)
 
-    def _minisom(self, snippets_by_word, words, X, codebook, sparsity):
+    def _minisom(self, snippets_by_word, words, X, codebook, sparsity, mode):
         """Creates fingerprints using minisom codebook.
         
         Attributes
@@ -202,7 +202,7 @@ class FingerPrint():
             results = compute(*values, scheduler='processes')
             
             idx_vectors = self._tranform_list_to_dict(results)
-            self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W, sparsity)
+            self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W, sparsity, mode)
 
         elif self.mode == 'numba':
             print('using numba')
@@ -212,7 +212,7 @@ class FingerPrint():
             
             idx_vectors = self._tranform_list_to_dict(results)
             #a = np.zeros((H, W), dtype=np.int)
-            self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W, sparsity)
+            self._create_fp_for_words(snippets_by_word, words, idx_vectors, H, W, sparsity, mode)
             
         elif self.mode == 'multiprocess':
 
@@ -227,7 +227,7 @@ class FingerPrint():
                         a = self._sparsify_fingerprint(value, sparsity)
                         #self._create_fp_image(a, key, 'fp_{}'.format(self.opts['id']))
                         word_fingerprint[key] = a
-            self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']))
+            self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']), mode)
        
     def _check_existing_word_fp(self, image_dir, words, fraction=None):
         
