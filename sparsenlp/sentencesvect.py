@@ -81,7 +81,7 @@ class SentenceVect():
 
         if 'repeat' in self.opts and self.opts['repeat'] is True:
             word_snippets_id = False
-
+        
         if word_snippets_id is not False:
             print('Using existing snippets by word: snippets_by_word_{}_{}.pkl'.format(word_snippets_id, testdataset))
             with open('{}snippets_by_word_{}_{}.pkl'.format(self.path, word_snippets_id, testdataset), 'rb') as handle:
@@ -95,7 +95,7 @@ class SentenceVect():
             dataframe_path = '{}dataframe_{}_text_{}.pkl'.format(self.path, ext, self.opts['paragraph_length'])
             dataframe = pd.read_pickle(dataframe_path, compression='bz2') 
             
-            #snippets_by_word = self._get_snippets_and_counts(sentences, words)
+            #snippets_by_word = self._get_snippets_and_counts(dataframe, words)
             snippets_by_word = datacleaner.get_dataset_counts_as_is(dataframe, words)
             with open('{}snippets_by_word_{}_{}.pkl'.format(self.path, self.opts['id'], testdataset), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
@@ -133,10 +133,9 @@ class SentenceVect():
             print ('Creating new vector representation: id {}'.format(self.opts['id']))
             
             datacleaner = DataCleaner()
-            dataframe = self.get_dataframe()
-
+            dataframe = self.get_dataframe()            
             # from tokens list to text
-            dataframe[self.opts['tokens']] = dataframe[self.opts['tokens']].apply(' '.join)
+            #dataframe[self.opts['tokens']] = dataframe[self.opts['tokens']].apply(' '.join)
             self.X = self.sentence_representation(dataframe[self.opts['tokens']])
             self._serialize_sentence_vector()
 
@@ -144,29 +143,27 @@ class SentenceVect():
 
     def get_dataframe(self):
         ext = '12'+str(self.opts['dataextension'].replace(',', ''))
-        dataframe_path = '{}dataframe_{}_{}_{}_ok.pkl'.format(self.path, ext, self.opts['tokens'], self.opts['paragraph_length'])
+        dataframe_path = '{}dataframe_{}_{}_{}.pkl'.format(self.path, ext, self.opts['tokens'], self.opts['paragraph_length'])
         datacleaner = DataCleaner()
         if os.path.isfile(dataframe_path):
             print ('Reading dataframe {}'.format(dataframe_path))
             dataframe = pd.read_pickle(dataframe_path, compression='bz2') 
             print(dataframe.shape)
             print(dataframe.columns)
+      
         else:
             print ('Creating new dataframe in {}'.format(dataframe_path))
             #self.opts['dataextension'] = ''
             #self.opts['paragraph_length'] = 500
-            sentences = self._read_serialized_sentences_text()
-            dataframe = sentences[['text']]     
-            
-            print('final sentences shape {}'.format(sentences.shape))
-            #dataframe = datacleaner.tokenize_text(sentences)
+            dataframe = self._read_serialized_sentences_text()
+            #dataframe = sentences[['text']]     
 
-            print('lemma or stemme dataframe')
+            """
             if self.opts['tokens'] == 'lemmas':
                 dataframe = datacleaner.lemmatize_text(dataframe)
             elif self.opts['tokens'] == 'stemme':
                 dataframe = datacleaner.steemer_text(dataframe)
-
+            """
             self._serialize_dataframe(dataframe, dataframe_path)
 
         return dataframe
@@ -182,8 +179,8 @@ class SentenceVect():
         try:
             for index, row in _dataframe.iterrows():
                 tokens = row[self.opts['tokens']].split()
-                for w in _word:
-                    
+
+                for w in _word:    
                     if tokens.count(w) != 0:
                         info = {'idx': index, 'counts': tokens.count(w)}
                         snippets_and_counts[w].append(info)
@@ -201,29 +198,31 @@ class SentenceVect():
         
         try:
             #self.sentences = pd.read_pickle('{}{}.bz2'.format('{}sentences/'.format(self.path), self.opts['paragraph_length']), 
-            path = '{}sentences/{}_ok.bz2'.format(self.path, self.opts['paragraph_length'])
+            path = '{}sentences/articles12/articles12_{}_{}.bz2'.format(self.path, self.opts['paragraph_length'], self.opts['tokens'])
             self.sentences = pd.read_pickle(path, compression="bz2")
             #print (self.sentences.shape)
+            print('initial sentences shape {}'.format(self.sentences.shape))
             if 'dataextension' in self.opts and self.opts['dataextension'] != '':
-                extension_sentences = self._read_extension_sentences(self.opts['dataextension'])
+                extension_sentences = self._read_extension_sentences()
                 self.sentences = self.sentences.append(extension_sentences, ignore_index=True)
                 del extension_sentences
-            
+            print('final sentences shape {}'.format(self.sentences.shape))
 
         except OSError as e:
             raise OSError('Sentences dataframe does not exists')
             
         return self.sentences
 
-    def _read_extension_sentences(self, dataextension):
+    def _read_extension_sentences(self):
         
         # create empty dataframe 
         new_sentences_df = pd.DataFrame(columns=self.sentences.columns)
 
-        extensions = dataextension.split(',')
+        extensions = self.opts['dataextension'].split(',')
         for ext in extensions:
             folder = '{}sentences/articles{}/'.format(self.path, ext)
-            file_list = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)) and f == 'articles{}_{}_ok.bz2'.format(ext, self.opts['paragraph_length'])]
+            file_list = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)) 
+                         and f == 'articles{}_{}_{}.bz2'.format(ext, self.opts['paragraph_length'], self.opts['tokens'])]
             
             for file in file_list:
                 df_sentences = pd.read_pickle('{}sentences/articles{}/{}'.format(

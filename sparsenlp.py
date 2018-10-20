@@ -163,6 +163,7 @@ if __name__ == '__main__':
     mode = sys.argv[1]
     time1 = datetime.datetime.now()
 
+    
     if mode == 'tokenize':
         datacleaner = DataCleaner()
         folder = '../wikiextractor/jsonfiles/articles3/AB/'
@@ -178,34 +179,58 @@ if __name__ == '__main__':
             sys.exit(1)
 
         paragraph_length = 300
-        articles = 'articles3'
+        articles = 'articles12'
         mode = sys.argv[2]
         folder = '/dev/shm/sentences/'+articles
         datacleaner = DataCleaner()
+
+        """
+        file = folder+'/'+articles+'_'+str(paragraph_length)+'_text.bz2'
+        dataframe = pd.read_pickle(file, compression="bz2")
+        print (dataframe.shape)
+        print (dataframe.columns)
+        print(dataframe[:10])
+
+        file = folder+'/'+articles+'_'+str(paragraph_length)+'_stemme.bz2'
+        dataframe = pd.read_pickle(file, compression="bz2")
+        print (dataframe.shape)
+        print (dataframe.columns)
+        print(dataframe[:10])
+        sys.exit(0)
+        """
         if mode == 'text':
 
             file = folder+'/'+articles+'_'+str(paragraph_length)+'.bz2'
             dataframe = pd.read_pickle(file, compression="bz2")
             print (dataframe.shape)
             print (dataframe.columns)
-        
-            num_processes = 7
-            with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
-                dataframe['text'] = list(tqdm.tqdm(pool.map(clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
-
-            dataframe['text'] = dataframe['text'].apply(' '.join)
-            result = dataframe[['text']]
-            print(result.head(3))
+            
+            #num_processes = 7
+            #with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            #    dataframe['text'] = list(tqdm.tqdm(pool.map(clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
+            result = datacleaner.tokenize_text(dataframe)
             #dataframe["text"] = dataframe.loc[:,('text')].apply(clean2)
 
+            result['text'] = result['text'].apply(' '.join)
             file = folder+'/'+articles+'_'+str(paragraph_length)+'_text.bz2'
 
         elif mode == 'lemmas':
             file = folder+'/'+articles+'_'+str(paragraph_length)+'_text.bz2'
             dataframe = pd.read_pickle(file, compression="bz2")
-
+            dataframe['text'] = dataframe['text'].apply(lambda x: x.split())
+            
             file = folder+'/'+articles+'_'+str(paragraph_length)+'_lemmas.bz2'
-            result = datacleaner.tokenize_text(dataframe)
+            result = datacleaner.lemmatize_text(dataframe)
+            result['lemmas'] = result['lemmas'].apply(' '.join)
+
+        elif mode == 'stemme':
+            file = folder+'/'+articles+'_'+str(paragraph_length)+'_text.bz2'
+            dataframe = pd.read_pickle(file, compression="bz2")
+            dataframe['text'] = dataframe['text'].apply(lambda x: x.split())
+
+            file = folder+'/'+articles+'_'+str(paragraph_length)+'_stemme.bz2'
+            result = datacleaner.steemer_text(dataframe)
+            result['stemme'] = result['stemme'].apply(' '.join)
 
         result.to_pickle(file, compression='bz2')
     
@@ -820,15 +845,14 @@ if __name__ == '__main__':
         vectors = SentenceVect(opts)
         X = vectors.create_vectors()
         snippets_by_word = vectors.create_word_snippets(words)
-
         mycluster = SentenceCluster(opts)
         codebook = mycluster.cluster(X)
 
         engine = experiments.engine
         fingerprints = FingerPrint(opts, engine)
         fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'dict', X=X)
-        if opts['algorithm'] == 'KMEANS':
-            fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'csr', X=X)
+        #if opts['algorithm'] == 'KMEANS':
+        #    fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'csr', X=X)
         
 
     elif mode == 'evaluate_dict_mode':

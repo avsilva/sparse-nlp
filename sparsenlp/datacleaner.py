@@ -53,19 +53,16 @@ class DataCleaner():
     def steemer(self, text):
     
         stemmer = PorterStemmer()
-        stems = [stemmer.stem(token) for token in tokens]
+        stems = [stemmer.stem(token) for token in text]
         return stems
 
     def tokenize_text(self, dataframe):
         
-        dataframe["text"] = dataframe.loc[:,('text')].apply(self.clean2)
-        #print(dataframe.head(3))
-
-        #num_processes = 1
-        #with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
-        #    dataframe['text'] = list(tqdm.tqdm(pool.map(self.clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
-
-        return dataframe
+        num_processes = 6
+        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            dataframe['text'] = list(tqdm.tqdm(pool.map(self.clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
+        #dataframe["text"] = dataframe.loc[:,('text')].apply(self.clean2)
+        return dataframe[["text"]]
 
     def lemmatize_text(self, dataframe):
 
@@ -85,17 +82,24 @@ class DataCleaner():
 
     def get_dataset_counts_as_is(self, dataframe, words):
         snippets_and_counts = {}
+
         for w in words:
             info = {'idx': 0, 'counts': 0}
             snippets_and_counts[w] = [info]
 
         for index, row in dataframe.iterrows():
-            tokens = row['text']
+            
+            #tokens = row['text']
+            #match exactly each word. car will not match cars
+            tokens = row['text'].split()        
             for w in words:
                 cnt = tokens.count(w)
                 if cnt != 0:
                     info = {'idx': index, 'counts': cnt}
                     snippets_and_counts[w].append(info)
+
+            if int(index) % 100000 == 0:
+                print('index {}'.format(index))
         return snippets_and_counts
 
     def get_dataset_counts_lemmas(self, dataframe, words):
