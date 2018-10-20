@@ -40,8 +40,8 @@ class DataCleaner():
         tokens = re.sub(r'\d+', '', tokens)
         tokens = ' '.join(word_tokenize(tokens))
         tokens = tokenizer.tokenize(tokens)
-        #tokens = [x for x in tokens if len(x) > 2]
-        #tokens = [x for x in tokens if x not in stopwords.words('english')]
+        tokens = [x for x in tokens if len(x) > 2]
+        tokens = [x for x in tokens if x not in stopwords.words('english')]
         return tokens
 
     def lemmatize(self, text):
@@ -69,19 +69,19 @@ class DataCleaner():
 
     def lemmatize_text(self, dataframe):
 
-        num_processes = 6
-        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
-            dataframe['lemmas'] = list(tqdm.tqdm(pool.map(self.lemmatize, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
-
-        return dataframe
+        #num_processes = 6
+        #with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+        #    dataframe['lemmas'] = list(tqdm.tqdm(pool.map(self.lemmatize, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
+        dataframe["lemmas"] = dataframe.loc[:,('text')].apply(self.lemmatize)
+        return dataframe[["lemmas"]]
 
     def steemer_text(self, dataframe):
     
-        num_processes = 6
-        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
-            dataframe['lemmas'] = list(tqdm.tqdm(pool.map(self.steemer, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
-
-        return dataframe
+        #num_processes = 6
+        #with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+        #    dataframe['stemme'] = list(tqdm.tqdm(pool.map(self.steemer, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
+        dataframe["stemme"] = dataframe.loc[:,('text')].apply(self.steemer)
+        return dataframe[["stemme"]]
 
     def get_dataset_counts_as_is(self, dataframe, words):
         snippets_and_counts = {}

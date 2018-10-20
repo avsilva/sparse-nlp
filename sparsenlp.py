@@ -173,26 +173,40 @@ if __name__ == '__main__':
 
     elif mode == 'prepare_dataframes':
         
+        if len(sys.argv) != 3:
+            print('USAGE: python {} {} mode'.format(sys.argv[0], sys.argv[1]))
+            sys.exit(1)
 
         paragraph_length = 300
-        articles = 'articles5'
+        articles = 'articles3'
+        mode = sys.argv[2]
         folder = '/dev/shm/sentences/'+articles
+        datacleaner = DataCleaner()
+        if mode == 'text':
 
-        file = folder+'/'+articles+'_'+str(paragraph_length)+'.bz2'
-        dataframe = pd.read_pickle(file, compression="bz2")
-        print (dataframe.shape)
-        print (dataframe.columns)
+            file = folder+'/'+articles+'_'+str(paragraph_length)+'.bz2'
+            dataframe = pd.read_pickle(file, compression="bz2")
+            print (dataframe.shape)
+            print (dataframe.columns)
         
-        num_processes = 7
-        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
-            dataframe['text'] = list(tqdm.tqdm(pool.map(clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
+            num_processes = 7
+            with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+                dataframe['text'] = list(tqdm.tqdm(pool.map(clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
 
-        dataframe['text'] = dataframe['text'].apply(' '.join)
-        result = dataframe[['text']]
-        print(result.head(3))
-        #dataframe["text"] = dataframe.loc[:,('text')].apply(clean2)
+            dataframe['text'] = dataframe['text'].apply(' '.join)
+            result = dataframe[['text']]
+            print(result.head(3))
+            #dataframe["text"] = dataframe.loc[:,('text')].apply(clean2)
 
-        file = folder+'/'+articles+'_'+str(paragraph_length)+'_ok.bz2'
+            file = folder+'/'+articles+'_'+str(paragraph_length)+'_text.bz2'
+
+        elif mode == 'lemmas':
+            file = folder+'/'+articles+'_'+str(paragraph_length)+'_text.bz2'
+            dataframe = pd.read_pickle(file, compression="bz2")
+
+            file = folder+'/'+articles+'_'+str(paragraph_length)+'_lemmas.bz2'
+            result = datacleaner.tokenize_text(dataframe)
+
         result.to_pickle(file, compression='bz2')
     
     elif mode == 'calculate_freqs2':
@@ -203,6 +217,7 @@ if __name__ == '__main__':
         folder = sys.argv[2]
         datacleaner = DataCleaner()
         folder = './datasets/wikidumps/{}'.format(folder)
+        #folder = 'F:/RESEARCH/TESE/corpora/wikifiles/01012018/json/'
         dataframe = datacleaner.ingestfiles(folder, 'pandas')
 
         dataframe['nwords'] = dataframe['text'].str.split().apply(len)
@@ -819,7 +834,7 @@ if __name__ == '__main__':
     elif mode == 'evaluate_dict_mode':
 
         if len(sys.argv) != 4:
-            print('USAGE: python {} evaluate logid sparsity'.format(sys.argv[0]))
+            print('USAGE: python {} evaluate_dict_mode logid sparsity'.format(sys.argv[0]))
             sys.exit(1)
 
         id = sys.argv[2]
@@ -995,7 +1010,7 @@ if __name__ == '__main__':
 # python -W ignore sparsenlp.py create_fps 2001
 # python -W ignore sparsenlp.py create_fps2 100031 snippetsbyword_all_datasets_1234_text_300.pkl
 # python sparsenlp.py cluster_fps_all
-# python -W ignore sparsenlp.py evaluate 3
+# python -W ignore sparsenlp.py evaluate_dict_mode 0.02
 # python sparsenlp.py clean 999 EN-RG-65
 # python -W ignore sparsenlp.py create_kmeans_fps 100031
 

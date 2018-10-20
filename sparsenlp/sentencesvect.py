@@ -132,15 +132,8 @@ class SentenceVect():
         else:
             print ('Creating new vector representation: id {}'.format(self.opts['id']))
             
-            
-
             datacleaner = DataCleaner()
             dataframe = self.get_dataframe()
-
-            if self.opts['tokens'] == 'lemmas':
-                dataframe = datacleaner.lemmatize_text(dataframe)
-            elif self.opts['tokens'] == 'stemme':
-                dataframe = datacleaner.steemer_text(dataframe)
 
             # from tokens list to text
             dataframe[self.opts['tokens']] = dataframe[self.opts['tokens']].apply(' '.join)
@@ -151,7 +144,7 @@ class SentenceVect():
 
     def get_dataframe(self):
         ext = '12'+str(self.opts['dataextension'].replace(',', ''))
-        dataframe_path = '{}dataframe_{}_text_{}.pkl'.format(self.path, ext, self.opts['paragraph_length'])
+        dataframe_path = '{}dataframe_{}_{}_{}_ok.pkl'.format(self.path, ext, self.opts['tokens'], self.opts['paragraph_length'])
         datacleaner = DataCleaner()
         if os.path.isfile(dataframe_path):
             print ('Reading dataframe {}'.format(dataframe_path))
@@ -163,10 +156,17 @@ class SentenceVect():
             #self.opts['dataextension'] = ''
             #self.opts['paragraph_length'] = 500
             sentences = self._read_serialized_sentences_text()
-            sentences = sentences[['text']]     
+            dataframe = sentences[['text']]     
             
             print('final sentences shape {}'.format(sentences.shape))
-            dataframe = datacleaner.tokenize_text(sentences)
+            #dataframe = datacleaner.tokenize_text(sentences)
+
+            print('lemma or stemme dataframe')
+            if self.opts['tokens'] == 'lemmas':
+                dataframe = datacleaner.lemmatize_text(dataframe)
+            elif self.opts['tokens'] == 'stemme':
+                dataframe = datacleaner.steemer_text(dataframe)
+
             self._serialize_dataframe(dataframe, dataframe_path)
 
         return dataframe
@@ -201,7 +201,7 @@ class SentenceVect():
         
         try:
             #self.sentences = pd.read_pickle('{}{}.bz2'.format('{}sentences/'.format(self.path), self.opts['paragraph_length']), 
-            path = '{}sentences/{}.bz2'.format(self.path, self.opts['paragraph_length'])
+            path = '{}sentences/{}_ok.bz2'.format(self.path, self.opts['paragraph_length'])
             self.sentences = pd.read_pickle(path, compression="bz2")
             #print (self.sentences.shape)
             if 'dataextension' in self.opts and self.opts['dataextension'] != '':
@@ -223,7 +223,7 @@ class SentenceVect():
         extensions = dataextension.split(',')
         for ext in extensions:
             folder = '{}sentences/articles{}/'.format(self.path, ext)
-            file_list = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)) and f == 'articles{}_{}.bz2'.format(ext, self.opts['paragraph_length'])]
+            file_list = [f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)) and f == 'articles{}_{}_ok.bz2'.format(ext, self.opts['paragraph_length'])]
             
             for file in file_list:
                 df_sentences = pd.read_pickle('{}sentences/articles{}/{}'.format(
