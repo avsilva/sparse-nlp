@@ -102,23 +102,28 @@ class DataCleaner():
                 print('index {}'.format(index))
         return snippets_and_counts
 
-    def get_dataset_counts_lemmas(self, dataframe, words):
-        lemmatizer = WordNetLemmatizer()
+    def get_dataset_counts_stemme(self, dataframe, words):
+        
+        stemmer = PorterStemmer()
         snippets_and_counts = {}
         for w in words:
             info = {'idx': 0, 'counts': 0}
             snippets_and_counts[w] = [info]
 
         for index, row in dataframe.iterrows():
-            tokens = row['text']
-            lemas = [lemmatizer.lemmatize(token) for token in tokens]
+            #tokens = row['text']
+            tokens = row['text'].split()        
+            token_stemmes = [stemmer.stem(token) for token in tokens]
             for w in words:
 
                 if tokens.count(w) != 0:
-                    lema = lemmatizer.lemmatize(w)
-                    count_lemmas_in_doc = lemas.count(lema)                
-                    info = {'idx': index, 'counts': count_lemmas_in_doc}
+                    stemm = stemmer.stem(w)
+                    count_stemmes_in_doc = token_stemmes.count(stemm)                
+                    info = {'idx': index, 'counts': count_stemmes_in_doc}
                     snippets_and_counts[w].append(info)
+
+            if int(index) % 100000 == 0:
+                print('index {}'.format(index))
         return snippets_and_counts
 
     def get_counter_as_is(self, dataframe):

@@ -88,14 +88,13 @@ class SentenceVect():
                 snippets_by_word = pickle.load(handle)
         else:
             print('Creating new snippets by word: id {} for {}'.format(self.opts['id'], testdataset))
-            #sentences = self._read_serialized_sentences_text()
 
             datacleaner = DataCleaner()
             ext = '12'+str(self.opts['dataextension'].replace(',', ''))
             dataframe_path = '{}dataframe_{}_text_{}.pkl'.format(self.path, ext, self.opts['paragraph_length'])
             dataframe = pd.read_pickle(dataframe_path, compression='bz2') 
             
-            #snippets_by_word = self._get_snippets_and_counts(dataframe, words)
+            # snippets_by_word = self._get_snippets_and_counts(dataframe, words)
             snippets_by_word = datacleaner.get_dataset_counts_as_is(dataframe, words)
             with open('{}snippets_by_word_{}_{}.pkl'.format(self.path, self.opts['id'], testdataset), 'wb') as f:
                 pickle.dump(snippets_by_word, f)
