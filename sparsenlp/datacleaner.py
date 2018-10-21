@@ -131,7 +131,8 @@ class DataCleaner():
         for index, row in dataframe.iterrows():
             cnt = collections.Counter()
             cnt['idx'] = index
-            tokens = row['text']
+            #tokens = row['text']
+            tokens = row['text'].split()
             for w in tokens:
                 cnt[w] += 1
             counter.append(cnt)

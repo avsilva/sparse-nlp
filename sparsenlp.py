@@ -134,13 +134,13 @@ def clean2(text):
         return tokens
 
 FILES = [
-            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_0.pkl', 
-            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_1.pkl',
-            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_2.pkl', 
-            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_3.pkl',
-            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_4.pkl', 
-            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_5.pkl',
-            './serializations2/old/snippetsbyword_all_datasets_12345_text_300_6.pkl'
+            '/dev/shm/snippetsbyword_12345_text_300_0.pkl', 
+            '/dev/shm/snippetsbyword_12345_text_300_1.pkl',
+            '/dev/shm/snippetsbyword_12345_text_300_2.pkl', 
+            '/dev/shm/snippetsbyword_12345_text_300_3.pkl',
+            '/dev/shm/snippetsbyword_12345_text_300_4.pkl', 
+            '/dev/shm/snippetsbyword_12345_text_300_5.pkl',
+            '/dev/shm/snippetsbyword_12345_text_300_6.pkl'
         ]
 
 FILES2 = [
@@ -289,7 +289,7 @@ if __name__ == '__main__':
             del mydict
         print (counts_by_word['car'])
         print (counter.most_common(10))
-        with open('./serializations2/vocabulary_{}_{}_{}.pkl'.format(dataextensions, column, paragraph_length), 'wb') as f:
+        with open('/dev/shm/vocabulary_{}_{}_{}.pkl'.format(dataextensions, column, paragraph_length), 'wb') as f:
             pickle.dump(counter, f)
 
         del counter['idx']
@@ -375,17 +375,15 @@ if __name__ == '__main__':
             #lines = handle.readlines()
             results = json.load(json_data)
             
-            
-
         if id in results:
             res = results[id] 
         else:
             results[id] = {}
             res = results[id] 
 
+
         #w_embedding = fetch_Mine(id, format="dict", normalize=False, lower=False, clean_words=False)
         w_embedding = fetch_Mine(id, format="csr", normalize=False, lower=False, clean_words=False)
-
         #w_embedding = fetch_GloVe(corpus="wiki-6B", dim=300)
 
         
@@ -399,10 +397,12 @@ if __name__ == '__main__':
             #"WS353R": fetch_WS353(which="relatedness"),
             #"WS353S": fetch_WS353(which="similarity"),
             #"SimLex999": fetch_SimLex999(),
-            #"RW": fetch_RW(),
             #"MTurk": fetch_MTurk(),
-            #"multilingual_SimLex999": fetch_multilingual_SimLex999()
+
+            #"multilingual_SimLex999": fetch_multilingual_SimLex999(),
+            #"RW": fetch_RW(),
         }
+        
         for name, data in similarity_tasks.items():
             similarity_results[name] = evaluate_similarity(w_embedding, data.X, data.y)
             print ("Spearman correlation of scores on {} {}".format(name, similarity_results[name]))
@@ -514,7 +514,6 @@ if __name__ == '__main__':
 
         index = keys.index(w)
         word_csr1 = csr[index]
-        
 
     elif mode == 'join_csr':
 
@@ -523,8 +522,7 @@ if __name__ == '__main__':
             sys.exit(1)
         id = sys.argv[2]
 
-
-        
+        """
         filepath_keys = 'keys_{}_datasets.npy'.format(id)
         with open('./images/fp_{}/{}'.format(id, filepath_keys), 'rb') as f:
             keys = pickle.load(f)
@@ -533,17 +531,25 @@ if __name__ == '__main__':
 
         index = keys.index('automobile')
         word_csr1 = csr[index]
-
+        """
         all_keys = []
         all_csr = []
         #csr_all = 
-        chunks = [0, 5000, 10000, 20000, 40000, 60000, 80000, 100000]
+        chunks = [0, 2000, 5000, 10000, 20000, 40000, 60000, 80000, 100000, 120000]
         for index, item in enumerate(chunks):
             if index < len(chunks) - 1:
-            #if index < len(chunks) - 7:
-                filepath_csr = 'csr_{}_{}_{}.npz'.format(id, chunks[index], chunks[index+1])
-                filepath_keys = 'keys_{}_{}_{}.npy'.format(id, chunks[index], chunks[index+1])
-                    
+                if index != 0:
+                    min = chunks[index] - 1
+                    max = chunks[index+1]
+                else:
+                    min = chunks[index]
+                    max = chunks[index+1]
+                print (min, max)
+
+            #if index < len(chunks) - 1:
+                filepath_csr = 'csr_{}_{}_{}.npz'.format(id, min, max)
+                filepath_keys = 'keys_{}_{}_{}.npy'.format(id, min, max)
+
                 csr = sparse.load_npz('./images/fp_{}/{}'.format(id, filepath_csr))
                 #print(csr.shape)
                 all_csr.append(csr)
@@ -556,39 +562,40 @@ if __name__ == '__main__':
                 #word_csr2 = csr[index]
                 #print (word_csr2)
                 #print ((word_csr1 != word_csr2).nnz==0)
+                
                 if index > 0:
-                    
                     all_csr[index] = csr_vappend(all_csr[index-1], all_csr[index])
                     print(all_csr[index].shape)
-                
+
         print (len(all_keys))
         final_csr = all_csr[index-1]
         print (final_csr.shape)
 
-        index = all_keys.index('automobile')
+        index = all_keys.index('car')
         word_csr2 = final_csr[index]
         print (word_csr2)
-        print ((word_csr1 != word_csr2).nnz==0)
+        #print ((word_csr1 != word_csr2).nnz==0)
 
-        
+         
         filepath_keys = './images/fp_{}/keys_{}_final.npy'.format(id, id)
         with open(filepath_keys, 'wb') as handle:
             pickle.dump(all_keys, handle)
         
         filepath_csr = './images/fp_{}/csr_{}_final.npz'.format(id, id)
         scipy.sparse.save_npz(filepath_csr, final_csr)
-
+        
 
     
     elif mode == 'create_kmeans_fps':
 
-        if len(sys.argv) != 4:
-            print('USAGE: python {} create_kmeans_fps logid sparsity'.format(sys.argv[0]))
+        if len(sys.argv) != 5 :
+            print('USAGE: python {} create_kmeans_fps logid sparsity mode'.format(sys.argv[0]))
             sys.exit(1)
 
         #id = 100031
         id = sys.argv[2]
         sparsity = float(sys.argv[3])
+        mode = sys.argv[4]
 
         paragraph_length = 300
         dataextensions = '12345'
@@ -600,8 +607,7 @@ if __name__ == '__main__':
                 log = ast.literal_eval(x)
         opts = log
 
-        mode = 'datasets'
-        
+
         #min = 0
         #max = 5000
         #min = 4999
@@ -620,22 +626,99 @@ if __name__ == '__main__':
         max = 140000 # first: araújo - last: pule
 
         if mode == 'most_common':
-            with open('./serializations2/vocabulary_{}_{}_{}.pkl'.format(dataextensions, column, paragraph_length), 'rb') as f:
+            with open('/dev/shm/vocabulary_{}_{}_{}.pkl'.format(dataextensions, column, paragraph_length), 'rb') as f:
                 Counter = pickle.load(f)
+
+            chunks = [0, 2000, 5000, 10000, 20000, 40000, 60000, 80000, 100000, 120000]
+            for index, chunk in enumerate(chunks):
+                if index < len(chunks) - 1:
+                    if index != 0:
+                        min = chunks[index] - 1
+                        max = chunks[index+1]
+                    else:
+                        min = chunks[index]
+                        max = chunks[index+1]
+                    print (min, max)
             
-            words = [word for word, word_count in Counter.most_common(max)]
-            if 'idx' in words:
-                i = words.index("idx")
-                del words[i]
-            words = words[min:max]
+            
+                    words = [word for word, word_count in Counter.most_common(max)]
+                    if 'idx' in words:
+                        i = words.index("idx")
+                        del words[i]
+                    words = words[min:max]
+                    print ('first: {} - last: {}'.format(words[0], words[-1]))
+                    #print ('Words {}'.format(len(words)))
+                    
+                    snippets_by_word = {}
+                    for file in FILES:
+                        print ('Loading {} '.format(file))
+                        mydict = load_pickle_gc(file)
+                        
+                        for word in words:
+                            #print ('Word id {} '.format(word))
+                            try:
+                                snippets_by_word[word] += mydict[word] 
+                            except KeyError as e:
+                                try:
+                                    snippets_by_word[word] = mydict[word]
+                                except KeyError as e:
+                                    pass
+                        del mydict
+
+                    opts['new_log'] = False
+                    opts['repeat'] = False
+                    if experiments.sentecefolder is not None:
+                        opts['sentecefolder'] = experiments.sentecefolder
+
+                    mycluster = SentenceCluster(opts)
+                    codebook = mycluster.cluster(None)
+
+                    engine = experiments.engine
+                    fingerprints = FingerPrint(opts, engine)
+                    fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'csr', min=min, max=max)
+
+            sys.exit(0)
         elif mode == 'datasets':
-            #words = get_words(['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999', 'EN-MEN-LEM'])
-            words = get_words(['EN-RG-65'])
-        
-        print ('first: {} - last: {}'.format(words[0], words[-1]))
-        print ('Words {}'.format(len(words)))
-        #print ('Counts for {} is {}'.format(words[-1], Counter[words[-1]]))
-        
+            words = get_words(['EN-RG-65', 'EN-WS353', 'EN-TRUK', 'EN-SIM999', 'EN-MEN-LEM'])
+            #words = get_words(['EN-RG-65'])
+            #print ('Counts for {} is {}'.format(words[-1], Counter[words[-1]]))
+            
+            snippets_by_word = {}
+            for file in FILES:
+                print ('Loading {} '.format(file))
+                mydict = load_pickle_gc(file)
+                
+                for word in words:
+                    #print ('Word id {} '.format(word))
+                    try:
+                        snippets_by_word[word] += mydict[word] 
+                    except KeyError as e:
+                        try:
+                            snippets_by_word[word] = mydict[word]
+                        except KeyError as e:
+                            pass
+                del mydict
+
+            opts['new_log'] = False
+            opts['repeat'] = False
+            if experiments.sentecefolder is not None:
+                opts['sentecefolder'] = experiments.sentecefolder
+
+            mycluster = SentenceCluster(opts)
+            codebook = mycluster.cluster(None)
+
+            engine = experiments.engine
+            fingerprints = FingerPrint(opts, engine)
+            fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'csr', min=min, max=max)
+
+        #with open('./snippetsbyword_200023_car.pkl', 'wb') as f:
+        #    pickle.dump(snippets_by_word, f)
+        #print ('Word car appears in {} documents '.format(len(snippets_by_word['car'])))
+
+        #with open('./serializations/snippets_by_word_300005_EN-RG-65.pkl', 'rb') as f:
+        #    snippets_by_word = pickle.load(f)
+
+        """
         mode2 = ''
         if mode2 == 'append':
             filepath = './images/fp_{}/dict_{}.npy'.format(id, id)
@@ -652,46 +735,7 @@ if __name__ == '__main__':
                     words2.append(w)
             print ('New words to append {}'.format(len(words2)))
             print ('First word to append {}'.format(words2[2]))
-        
-        snippets_by_word = {}
-        for file in FILES2:
-            print ('Loading {} '.format(file))
-            mydict = load_pickle_gc(file)
-            
-            for word in words:
-                #print ('Word id {} '.format(word))
-                try:
-                    snippets_by_word[word] += mydict[word] 
-                except KeyError as e:
-                    try:
-                        snippets_by_word[word] = mydict[word]
-                    except KeyError as e:
-                        pass
-
-            #word_snippets[word] += mydict[word] 
-            del mydict
-
-        #with open('./snippetsbyword_rg65_dataset_12345_text_300.pkl', 'wb') as f:
-        #    pickle.dump(snippets_by_word, f)
-        #print ('Word car appears in {} documents '.format(len(snippets_by_word['car'])))
-        
-        #with open('./serializations/snippets_by_word_300005_EN-RG-65.pkl', 'rb') as f:
-        #    snippets_by_word = pickle.load(f)
-
-        opts['new_log'] = False
-        opts['repeat'] = False
-        if experiments.sentecefolder is not None:
-            opts['sentecefolder'] = experiments.sentecefolder
-        #opts['dataset'] = datareference
-        #vectors = SentenceVect(opts)
-        #X = vectors.create_vectors()
-
-        mycluster = SentenceCluster(opts)
-        codebook = mycluster.cluster(None)
-
-        engine = experiments.engine
-        fingerprints = FingerPrint(opts, engine)
-        fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'csr')
+        """
     
     elif mode == 'read_chunks':
         
@@ -710,9 +754,8 @@ if __name__ == '__main__':
         # for total counts in all documents it needs to loop all chunk files
         
         datacleaner = DataCleaner()
-        paragraph_length = 200
-        #dataextensions = '12345'
-        dataextensions = '12'
+        paragraph_length = 300
+        dataextensions = '12345'
         column = 'text'
 
         if experiments.sentecefolder is not None:
@@ -747,22 +790,25 @@ if __name__ == '__main__':
             del snippets_by_word
     
     elif mode == 'create_counter': # creates dict with token counts by document {'idx7': [{car:2, bike:2}, 'idx8': [{car:2, water:1}]}
-        paragraph_length = 200
-        #dataextensions = '12345'
-        dataextensions = '12'
+        paragraph_length = 300
+        dataextensions = '12345'
         column = 'text'
 
         if experiments.sentecefolder is not None:
             basefolder = experiments.sentecefolder
         else:
             basefolder = './'
+        file = '{}dataframe_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length)
+        print(file)
         
-        dataframe = pd.read_pickle('{}dataframe_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), compression='bz2')
+        dataframe = pd.read_pickle(file, compression='bz2')
+        
         datacleaner = DataCleaner()
         counter = datacleaner.get_counter_as_is(dataframe)
         #counter = datacleaner.get_counter_lemmas(dataframe)
         with open('{}counter_{}_{}_{}.pkl'.format(basefolder, dataextensions, column, paragraph_length), 'wb') as f:
             pickle.dump(counter, f)
+        print(counter[:5])
     
     elif mode == 'create_dataframe_snippets':
         paragraph_length = 200
@@ -785,40 +831,6 @@ if __name__ == '__main__':
         #    dataframe.to_pickle('{}dataframe_{}_{}_{}.pkl'.format(experiments.sentecefolder, ext, column, paragraph_length), compression='bz2')
         #else:
         #    dataframe.to_pickle('./dataframe_{}_{}_{}.pkl'.format(ext, column, paragraph_length), compression='bz2')
-
-        
-    
-    elif mode == 'create_fps2':
-
-        if len(sys.argv) != 4:
-            print('USAGE: python {} logid word_snippets'.format(sys.argv[0]))
-            sys.exit(1)
-
-        id = sys.argv[2]
-        wordsnippets = sys.argv[3]
-        sparsity = 0
-        
-        with open('./logs/log_{}'.format(id), 'r', encoding='utf-8') as handle:
-            datafile = handle.readlines()
-            for x in datafile:
-                log = ast.literal_eval(x)
-        opts = log
-        opts['new_log'] = False
-        opts['repeat'] = False
-        if experiments.sentecefolder is not None:
-            opts['sentecefolder'] = experiments.sentecefolder
-        #opts['dataset'] = datareference
-
-        vectors = SentenceVect(opts)
-        X = vectors.create_vectors()
-        snippets_by_word = vectors.get_word_snippets(wordsnippets)
-
-        mycluster = SentenceCluster(opts)
-        codebook = mycluster.cluster(X)
-        
-        engine = experiments.engine
-        fingerprints = FingerPrint(opts, engine)
-        fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, X)
     
     elif mode == 'create_fps':
 
@@ -994,7 +1006,7 @@ if __name__ == '__main__':
             snippets_by_word = get_snippets_by_word(vectors, datareference)
             
             fingerprints = FingerPrint(log, log['engine'])
-            fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, X)
+            fingerprints.create_fingerprints(snippets_by_word, codebook, sparsity, 'dict', X)
             if log['clean'] is True:
                 clean_files(folder, id)
 

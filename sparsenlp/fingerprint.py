@@ -61,7 +61,7 @@ class FingerPrint():
                       'MINISOMRANDOM': self._minisom}
     
     @decorate.elapsedtime_log
-    def create_fingerprints(self, snippets_by_word, codebook, sparsity, mode, X=None):
+    def create_fingerprints(self, snippets_by_word, codebook, sparsity, mode, X=None, min=None, max=None):
         """Creates fingerprint for each word.
         
         Attributes
@@ -83,9 +83,10 @@ class FingerPrint():
         words = self._check_existing_word_fp('fp_{}'.format(self.opts['id']), words, float(fraction))
         """
         words = list(snippets_by_word.keys())
+        
         print ('Creating SDR for {} words'.format(len(words)))
         if self.opts['algorithm'] == 'KMEANS':
-            self._kmeans(snippets_by_word, words, codebook, sparsity, mode)
+            self._kmeans(snippets_by_word, words, codebook, sparsity, mode,  min=min, max=max)
         elif self.opts['algorithm'] == 'MINISOMBATCH':
             self._minisom(snippets_by_word, words, X, codebook, sparsity, mode)
 
@@ -94,7 +95,7 @@ class FingerPrint():
 
         return True
 
-    def _kmeans(self, snippets_by_word, words, codebook, sparsity, mode):
+    def _kmeans(self, snippets_by_word, words, codebook, sparsity, mode, min=None, max=None):
         """Creates fingerprints using kmeans codebook.
         
         Attributes
@@ -108,6 +109,7 @@ class FingerPrint():
         word_fingerprint = {} 
         index = 0
         for word in words:
+            
             a = np.zeros(self.opts['size'] * self.opts['size'], dtype=np.int)
             word_counts = snippets_by_word[word]
             
@@ -124,13 +126,13 @@ class FingerPrint():
             else:
                 a = self._sparsify_fingerprint(a, sparsity)
             word_fingerprint[word] = a
+            #print (np.count_nonzero(a))
             del a
             index += 1
             if int(index) % 100 == 0:
                 print('index {}'.format(index))
         #print (word_fingerprint)
-        
-        self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']), mode)
+        self._create_dict_fingerprint_image(word_fingerprint, 'fp_{}'.format(self.opts['id']), mode, min=min, max=max)
         del word_fingerprint
 
     def _get_unique_word_vectors(self, unique_indexes, X):
@@ -304,17 +306,26 @@ class FingerPrint():
         b = vfunc(a)
         return b
 
-    def _create_dict_fingerprint_image(self, fp_dict, image_dir, mode):
+    def _create_dict_fingerprint_image(self, fp_dict, image_dir, mode, min=None, max=None):
         
         if not os.path.exists("./images/{}".format(image_dir)):
             os.makedirs("./images/{}".format(image_dir))
         
         if mode == 'csr':
-            filepath = './images/{}/keys_{}.npy'.format(image_dir, self.opts['id'])
-            with open(filepath, 'wb') as handle:
+            print(min, max)
+            if min is not None and max is not None:
+                print('min and max is not none')
+                keys_filepath = './images/{}/keys_{}_{}_{}.npy'.format(image_dir, self.opts['id'], min, max)
+                csr_filepath = './images/{}/csr_{}_{}_{}.npz'.format(image_dir, self.opts['id'], min, max)
+            else:
+                keys_filepath = './images/{}/keys_{}.npy'.format(image_dir, self.opts['id'])
+                csr_filepath = './images/{}/csr_{}.npz'.format(image_dir, self.opts['id'])
+
+            with open(keys_filepath, 'wb') as handle:
                 pickle.dump(list(fp_dict.keys()), handle)
             csr = csr_matrix(list(fp_dict.values()))
-            scipy.sparse.save_npz('./images/{}/csr_{}.npz'.format(image_dir, self.opts['id']), csr)
+            scipy.sparse.save_npz(csr_filepath, csr)
+
         elif mode == 'dict':
         
             filepath = './images/{}/dict_{}.npy'.format(image_dir, self.opts['id'])
@@ -479,12 +490,12 @@ class FingerPrint():
             with open(filepath, 'rb') as handle:
                 fingerprints = pickle.load(handle)
 
-            print (fingerprints['car'].flatten()[:200])
+            print (fingerprints['car'].flatten()[:400])
             if sparsity != 0:
                 for key, value in fingerprints.items():
                     fingerprints[key] = self._sparsify_fingerprint(value, sparsity)
-            print (fingerprints['car'].flatten()[:200])
-            
+            print (fingerprints['car'].flatten()[:400])
+            print (np.count_nonzero(fingerprints['car']))
             if mode == 'MINISOMBATCH':
                 A = [fingerprints[word].flatten() for word in bunch.X[:, 0]]
                 B = [fingerprints[word].flatten() for word in bunch.X[:, 1]]
