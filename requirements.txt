@@ -1,2 +1,7 @@
+requests
+wikiextractor
 minisom
 tqdm
+numpy
+pandas
+nltk

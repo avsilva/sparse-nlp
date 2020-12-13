@@ -63,21 +63,28 @@ In order to use SparseNLP you need your data stored in a database table with 2 c
  - python -m unittest -q tests.test_datacleaner.TestDataClean.test_ingestfiles_json_to_dict
 
 
+https://realpython.com/fast-flexible-pandas/
+https://towardsdatascience.com/stop-using-pandas-and-start-using-spark-with-scala-f7364077c2e0
+https://www.kdnuggets.com/2019/11/speed-up-pandas-4x.html
 
+## TODO
+evaluate using word-embeddings-benchmarks
+train word2vec on wikidumps
 
 
 ## Project Planning
 
-1. Training Corpora Definition - 16 Feb
-2. Corpora pre-processing - 28 Feb
-3. Sentence tokenization - 12 Mar
-4. Sentence vetorization - 26 Mar
-5. Word to sentence database - 9 Apr
-6. Cluster sentences - 23 Apr
-7. Word fingerprint - 4 May
-8. Text fingerprint - 17 May
-9. Evaluation - 30 Aug
-
+0. Extracting data
+1. Training Corpora Definition 
+2. Corpora pre-processing
+3. Sentence tokenization
+4. Sentence vetorization
+5. Word to sentence database
+6. Cluster sentences
+7. Word fingerprint
+8. Text fingerprint
+9. Evaluation
+10. Trainning Word2Vec word embeedings
 
 ## 1. Training Corpora Definition
 
