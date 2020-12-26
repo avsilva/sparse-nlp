@@ -281,7 +281,7 @@ class DataCleaner():
         self.data['tokenized'] = self.data['tokenized'].apply(lambda x: ' '.join(x))
         self.data['text_length_tokenized'] = self.data['tokenized'].str.len()
 
-        return self.data
+        return self
         
         """
         for index, row in self.data.iterrows():

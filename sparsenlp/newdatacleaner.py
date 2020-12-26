@@ -8,19 +8,25 @@ import datetime
 import pandas as pd
 import numpy as np
 import concurrent.futures
+from functools import partial
 import multiprocessing
 import tqdm
 import collections
 import re
 import time
+import nltk
 from nltk.tokenize import word_tokenize
 from nltk.corpus import stopwords
+
 #from utils.corpora import clean_text as tokenizer
 from nltk.tokenize import RegexpTokenizer
+from nltk.tokenize.regexp import regexp_tokenize
 from nltk.stem import WordNetLemmatizer
 from nltk.stem.porter import *
 
+#nltk.download('stopwords')
 tokenizer = RegexpTokenizer(r'\w+')
+STOP = {'english': stopwords.words('english'), 'portuguese': stopwords.words('portuguese')}
 
 class AbstractReader:
     def debug(self, msg):
@@ -65,6 +71,27 @@ class JsonReader(AbstractReader):
     def parse_line(self, x):
         return json.loads(x)
 
+class RawTextReader(AbstractReader):
+    def __init__(self):
+        pass
+
+    def read(self, level, msg):
+        self.file.write("{}: {}".format(level, msg))
+
+    def parse_line(self, x):
+        
+        try:
+            date = x.split(',')[0]
+            hour = x.split('-')[0].split(',')[1]
+            user = x.split('-')[1].split(':')[0]
+            text = x.split(':').pop()
+        except IndexError as e:
+            date = None
+            hour = None
+            user = None
+            text = x
+        return {'date': date, 'hour': hour, 'user': user, 'text': text}
+
 class DataCleaner():
     """Initializes an instance of data cleaner object. Tokenizes text input data.
 
@@ -78,6 +105,10 @@ class DataCleaner():
         self.folder = folder
         self.errors = []
         self.data = None
+
+    def statistics(self):
+        shape = self.data.shape
+        return {"shape": shape}
 
     def ingest_files_into(self, mode: str, format: str):
         """Reads some kind of data source and imports into same kind of data structure
@@ -95,6 +126,8 @@ class DataCleaner():
         """
         if format == 'json':
             reader = JsonReader()
+        elif format == 'rawtext':
+            reader = RawTextReader()
         else:
             raise ValueError('Unknown input format')
 
@@ -109,11 +142,15 @@ class DataCleaner():
             elif mode == 'pandasdataframe':
                 self.data = pd.DataFrame(data)
                 self.data['text_length'] = self.data['text'].str.len()
-            print (self.data.head())
+            
         else:
             raise IOError(errno.ENOENT, 'Not a Folder', input)
 
-        return self.data
+        return self
+
+    def autofill_dataframe(self, axis=0):
+        self.data = self.data.ffill(axis = 0) 
+        return self
 
     def clean2(self, text):
         
@@ -137,13 +174,92 @@ class DataCleaner():
         stems = [stemmer.stem(token) for token in text]
         return stems
 
-    def tokenize_text(self, dataframe):
+
+    @staticmethod
+    def _cleantext(text):
+        punc_list = '!"#$%&()*+,-./:;<=>?@[\]^_{|}~' + '0123456789'
+        t = str.maketrans(dict.fromkeys(punc_list, " "))
+        text = text.replace("\n", " ").replace("\r", " ")
+        text = text.translate(t)
+        return text
+
+    def clean_text(self):
+        print("cleaning text")
+        t1 = time.time()
         
+        num_processes = 8
+        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            self.data['text'] = list(tqdm.tqdm(pool.map(self._cleantext, self.data['text'], chunksize=1000), total=self.data.shape[0]))
+        
+        """
+        punc_list = '!"#$%&()*+,-./:;<=>?@[\]^_{|}~' + '0123456789'
+        t = str.maketrans(dict.fromkeys(punc_list, " "))
+        self.data = self.data.assign(text = lambda x: (x['text'].replace("\n", " ").replace("\r", " ")))
+        self.data = self.data.assign(text = lambda x: (x['text'].str.translate(t)))
+        """
+        t2 = time.time()
+        print ("cleaning ", self.data.shape[0], ' rows, time = %.3f' %(t2-t1))
+        return self
+
+    @staticmethod
+    def _stopwords(stopwords, text):
+        pat = r'\b(?:{})\b'.format('|'.join(stopwords))
+        return re.sub(pat, '', text)
+
+    
+    def remove_stopwords(self, lang, aditional=[]):
+        print("remove stopwords")
+        
+        stopwords = STOP[lang]
+        stopwords += aditional
+        print(type(stopwords))
+
+        #df = self.data[:100000]
+        t1 = time.time()
+        
+        num_processes = 8
+        func = partial(self._stopwords, stopwords)
+        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            self.data['text'] = list(tqdm.tqdm(pool.map(func, self.data['text'], chunksize=1000), total=self.data.shape[0]))
+        
+        t2 = time.time()
+        print ("stopwords ", self.data.shape[0], ' rows, time = %.3f' %(t2-t1))
+        return self
+
+    @staticmethod
+    def _tolower(text):
+        return text.lower()
+
+    def all_lower(self):   
+        print("to lower")
+
+        #df = self.data[:100000]
+        t1 = time.time()
+        
+        num_processes = 8
+        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            self.data['text'] = list(tqdm.tqdm(pool.map(self._tolower, self.data['text'], chunksize=1000), total=self.data.shape[0]))
+        
+        t2 = time.time()
+        print ("to lower ", self.data.shape[0], ' rows, time = %.3f' %(t2-t1))
+        return self  
+        
+    @staticmethod
+    def _mytokenizer(text):
+        WORD = re.compile(r'\w+')
+        tokens = WORD.findall(text)
+        return tokens
+
+    def tokenize_text(self):
+        print("tokenizing text")
+        t1 = time.time()
+        #self.data["tokens"] = self.data.apply(lambda x: self._mytokenizer(x['text']), axis=1)
         num_processes = 6
         with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
-            dataframe['text'] = list(tqdm.tqdm(pool.map(self.clean2, dataframe['text'], chunksize=10), total=dataframe.shape[0]))
-        #dataframe["text"] = dataframe.loc[:,('text')].apply(self.clean2)
-        return dataframe[["text"]]
+            self.data['tokens'] = list(tqdm.tqdm(pool.map(self._mytokenizer, self.data['text'], chunksize=1000), total=self.data.shape[0]))
+        t2 = time.time()
+        print ("tokenize ", self.data.shape[0], ' rows, time = %.3f' %(t2-t1))
+        return self
 
     def lemmatize_text(self, dataframe):
 
@@ -322,7 +438,7 @@ class DataCleaner():
 
     def tokenize_pandas_column(self, column, num_processes=4):
         """Tokenines text column into new DataFrame column"""
-
+        print(self.data.shape)
         #num_processes = multiprocessing.cpu_count() - 1
         with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
             # self.data['tokenized'] = list(pool.map(self.clean, self.data['text'], chunksize=10))
@@ -356,7 +472,7 @@ class DataCleaner():
         return self.data
         """
 
-    def serialize(self, filename, path):
+    def serialize(self, path, filename):
         """Tokenines text column into new DataFrame column"""
 
         self.data.to_pickle('{}/{}'.format(path, filename), 
@@ -364,24 +480,21 @@ class DataCleaner():
 
     def sentence_segmentation(self, input, re_paragraph_splitter):
         """Takes input and splits into a list of paragraphs (snippets)"""
-
         snippets = re.split(re_paragraph_splitter, input)
         return snippets
 
-    def explode_dataframe_in_snippets(self, column, re_paragraph_splitter):
+    def explode_dataframe_into_snippets(self, column, re_paragraph_splitter):
         """Takes instance data dataframe and returns another dataframe with
             each text row splited into snippets
-        
         """
                 
-        #new_df = pd.DataFrame(columns=self.data.columns)
         sLength = len(self.data[column])
         i = 0
 
         sentences = []
         for index, row in self.data.iterrows():
             
-            if index % 50 == 0:
+            if index % 2000 == 0:
                 print('exploding {} th row of {}'.format(index, sLength))
 
             snippets = self.sentence_segmentation(row[column], re_paragraph_splitter)
@@ -390,8 +503,7 @@ class DataCleaner():
                 sentences.append({'id': row['id'], 'text': snippet, 'text_length': len(snippet)})
                 i += 1
         
-        df = pd.DataFrame(sentences)
-        self.data = df
-        return df
+        self.data = pd.DataFrame(sentences)
+        return self
         
 
