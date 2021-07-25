@@ -37,8 +37,8 @@ def main(argv):
             ingest_files_into('pandasdataframe', format) .\
             explode_dataframe_into_snippets('text', '\n\n+') .\
             clean_text() .\
-            remove_stopwords(args['lang']) .\
             all_lower() .\
+            remove_stopwords(args['lang']) .\
             tokenize_text()
             #serialize('C:\AVS\WORK\PROJECTS\sparse-nlp\serialize', 'tokens.pkl')
             
@@ -55,9 +55,13 @@ def main(argv):
             ingest_files_into('pandasdataframe', format) .\
             autofill_dataframe(axis=0) .\
             clean_text() .\
-            remove_stopwords(args['lang'], ['Media', 'omitted']) .\
             all_lower() .\
-            tokenize_text()
+            remove_words_by_length(2) .\
+            remove_stopwords(args['lang'], ['media', 'omitted', 'bored', 'this', 'message', 'was', 'deleted', 'i\'m']) .\
+            remove_emoji() .\
+            tokenize_text() .\
+            save('whatsup.pkl') .\
+            open('whatsup.pkl') 
         print (datacleaner.data[85:100])
 
         #TODO: remove stop words

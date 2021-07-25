@@ -3,10 +3,12 @@ import os
 import sys
 import errno
 import re
+import string
 import json
 import datetime
 import pandas as pd
 import numpy as np
+import pickle
 import concurrent.futures
 from functools import partial
 import multiprocessing
@@ -63,7 +65,7 @@ class AbstractReader:
 
 class JsonReader(AbstractReader):
     def __init__(self):
-        pass
+        self.errors = []
 
     def read(self, level, msg):
         self.file.write("{}: {}".format(level, msg))
@@ -73,7 +75,7 @@ class JsonReader(AbstractReader):
 
 class RawTextReader(AbstractReader):
     def __init__(self):
-        pass
+        self.errors = []
 
     def read(self, level, msg):
         self.file.write("{}: {}".format(level, msg))
@@ -109,6 +111,19 @@ class DataCleaner():
     def statistics(self):
         shape = self.data.shape
         return {"shape": shape}
+
+    def save(self, filename, mode='pickle'):
+        if mode == 'pickle':
+            self.data.to_pickle('{}/{}'.format(self.folder, filename))
+            #with open('{}/{}'.format(self.folder, filename), 'wb') as f:
+            #    pickle.dump(self.data, f)
+        return self
+
+    def open(self, filename):
+        #with open('{}/{}'.format(self.folder, filename), 'rb') as f:
+        #    self.data = pickle.load(f)
+        pd.read_pickle('{}/{}'.format(self.folder, filename))
+        return self
 
     def ingest_files_into(self, mode: str, format: str):
         """Reads some kind of data source and imports into same kind of data structure
@@ -205,7 +220,6 @@ class DataCleaner():
     def _stopwords(stopwords, text):
         pat = r'\b(?:{})\b'.format('|'.join(stopwords))
         return re.sub(pat, '', text)
-
     
     def remove_stopwords(self, lang, aditional=[]):
         print("remove stopwords")
@@ -214,7 +228,6 @@ class DataCleaner():
         stopwords += aditional
         print(type(stopwords))
 
-        #df = self.data[:100000]
         t1 = time.time()
         
         num_processes = 8
@@ -227,19 +240,49 @@ class DataCleaner():
         return self
 
     @staticmethod
+    def _remove_emoji(text):
+        emoji = r"(?:[^\s])(?<![\w{ascii_printable}])".format(ascii_printable=string.printable)
+        return re.sub(emoji, '', text)
+    
+    def remove_emoji(self):
+        print("remove emoji")
+        
+        t1 = time.time()
+        num_processes = 8        
+        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            self.data['text'] = list(tqdm.tqdm(pool.map(self._remove_emoji, self.data['text'], chunksize=1000), total=self.data.shape[0]))
+        
+        t2 = time.time()
+        print ("emoji ", self.data.shape[0], ' rows, time = %.3f' %(t2-t1))
+        return self
+
+    @staticmethod
+    def _remove_words_by_length(limit, text):
+        tokens = text.split(' ')
+        tokens = [x for x in tokens if len(x) > limit]
+        return ' '.join(tokens)
+    
+    def remove_words_by_length(self, limit):
+        print("remove words by length")
+        t1 = time.time()
+        num_processes = 8
+        func = partial(self._remove_words_by_length, limit)
+        with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
+            self.data['text'] = list(tqdm.tqdm(pool.map(func, self.data['text'], chunksize=1000), total=self.data.shape[0]))
+        t2 = time.time()
+        print ("remove words by length ", self.data.shape[0], ' rows, time = %.3f' %(t2-t1))
+        return self
+
+    @staticmethod
     def _tolower(text):
         return text.lower()
 
     def all_lower(self):   
         print("to lower")
-
-        #df = self.data[:100000]
         t1 = time.time()
-        
         num_processes = 8
         with concurrent.futures.ProcessPoolExecutor(num_processes) as pool:
             self.data['text'] = list(tqdm.tqdm(pool.map(self._tolower, self.data['text'], chunksize=1000), total=self.data.shape[0]))
-        
         t2 = time.time()
         print ("to lower ", self.data.shape[0], ' rows, time = %.3f' %(t2-t1))
         return self  

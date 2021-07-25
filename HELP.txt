@@ -1,0 +1,5 @@
+
+-- check dask for improving tasks performance
+https://docs.dask.org/en/latest/dataframe.html
+
+check https://github.com/rapidsai/cudf for storing word/token data

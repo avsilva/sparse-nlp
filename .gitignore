@@ -1,0 +1,22 @@
+
+# python
+sparsenlp/__pycache__/
+
+#virtual env folders
+Scripts/
+Include/
+Lib/
+share/
+tcl/
+.pytest_cache/
+
+#other repos
+word-embeddings-benchmarks
+
+
+#vscode
+sparsenlp.code-workspace
+.vscode/
+
+data/
+serialize/
